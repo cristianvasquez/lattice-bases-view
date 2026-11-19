@@ -203,6 +203,12 @@
   fill: var(--background-secondary);
 }
 
+/* Before the rules for the focused concept and the keyboard focus, so that these rules win. */
+.concept-atlas .concept-atlas-node.is-marked .concept-atlas-node-box {
+  stroke: var(--interactive-accent);
+  stroke-width: 2;
+}
+
 .concept-atlas .concept-atlas-node.is-focused .concept-atlas-node-box {
   fill: var(--background-modifier-hover);
   stroke: var(--interactive-accent);
@@ -216,11 +222,6 @@
 
 /* Highlight of a node and all displayed nodes above it (pointer, keyboard focus or focused concept). */
 .concept-atlas .concept-atlas-edge.is-marked {
-  stroke: var(--interactive-accent);
-  stroke-width: 2;
-}
-
-.concept-atlas .concept-atlas-node.is-marked .concept-atlas-node-box {
   stroke: var(--interactive-accent);
   stroke-width: 2;
 }
