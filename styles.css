@@ -142,6 +142,11 @@
   gap: var(--size-4-1);
 }
 
+.concept-atlas .concept-atlas-hint {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
 .concept-atlas .concept-atlas-message {
   padding: var(--size-4-4);
   color: var(--text-muted);
@@ -207,6 +212,22 @@
 .concept-atlas .concept-atlas-node:focus-visible .concept-atlas-node-box {
   stroke: var(--interactive-accent);
   stroke-width: 3;
+}
+
+/* Highlight of a node and all displayed nodes above it (pointer, keyboard focus or focused concept). */
+.concept-atlas .concept-atlas-edge.is-marked {
+  stroke: var(--interactive-accent);
+  stroke-width: 2;
+}
+
+.concept-atlas .concept-atlas-node.is-marked .concept-atlas-node-box {
+  stroke: var(--interactive-accent);
+  stroke-width: 2;
+}
+
+.concept-atlas .has-highlight .concept-atlas-edge:not(.is-marked),
+.concept-atlas .has-highlight .concept-atlas-node:not(.is-marked) {
+  opacity: 0.35;
 }
 
 .concept-atlas .concept-atlas-node-label {
@@ -275,19 +296,31 @@
   padding: var(--size-2-1) 0;
 }
 
-.concept-atlas .concept-atlas-inspect {
+.concept-atlas .concept-atlas-note.is-selected {
+  background-color: var(--background-modifier-hover);
+  border-radius: var(--radius-s);
+}
+
+.concept-atlas .concept-atlas-values-button {
   font-size: var(--font-ui-smaller);
 }
 
-.concept-atlas .concept-atlas-inspect.is-active {
+.concept-atlas .concept-atlas-values-button.is-active {
   color: var(--text-on-accent);
   background-color: var(--interactive-accent);
 }
 
-.concept-atlas .concept-atlas-inspector {
+.concept-atlas .concept-atlas-note-values {
   margin-top: var(--size-4-4);
   padding-top: var(--size-4-2);
   border-top: var(--border-width) solid var(--background-modifier-border);
+}
+
+.concept-atlas .concept-atlas-note-values-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
 }
 
 .concept-atlas .concept-atlas-footer {

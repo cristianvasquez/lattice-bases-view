@@ -1,12 +1,16 @@
 // SVG diagram of the displayed part of the lattice, with pan and zoom. DOM code; the layout comes from layout.ts.
 import type { Component } from 'obsidian';
 import { DEFAULT_LAYOUT, fitTransform } from './layout';
-import type { DisplayModel } from './model';
+import { type DisplayModel, type DisplayNode, nodesAbove } from './model';
+import type { Cover } from '../fca';
 
 const PAD = 24;
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 4;
+/** Size of a compact node: a node that adds no value to the nodes above it. */
+const COMPACT_WIDTH = 88;
+const COMPACT_HEIGHT = 28;
 
 export interface DiagramHandlers {
   /** Click, Enter or Space on a node. */
@@ -48,6 +52,14 @@ export class Diagram {
   private moved = false;
   private drag: { id: number; x: number; y: number; tx: number; ty: number; active: boolean } | null = null;
   private suppressClick = false;
+  /** Node and edge elements of the last render. `edgeEls[i]` draws `covers[i]`. */
+  private nodeEls: SVGGElement[] = [];
+  private edgeEls: SVGLineElement[] = [];
+  private covers: readonly Cover[] = [];
+  /** The node under the pointer, the node with the keyboard focus and the focused concept (click or Enter). */
+  private hovered: number | null = null;
+  private keyboard: number | null = null;
+  private selected: number | null = null;
   /** Prefix of the element ids of this diagram. */
   private readonly idPrefix = `concept-atlas-diagram-${++diagramCount}`;
 
@@ -64,6 +76,18 @@ export class Diagram {
     component.registerDomEvent(this.viewport, 'wheel', (ev) => this.onWheel(ev), { passive: false });
     component.registerDomEvent(this.viewport, 'click', (ev) => this.onClick(ev));
     component.registerDomEvent(this.viewport, 'keydown', (ev) => this.onKeyDown(ev));
+    component.registerDomEvent(this.viewport, 'pointerover', (ev) => this.setHovered(this.nodeIndex(ev.target)));
+    component.registerDomEvent(this.viewport, 'pointerleave', () => this.setHovered(null));
+    component.registerDomEvent(this.viewport, 'focusin', (ev) => {
+      this.keyboard = this.nodeIndex(ev.target);
+      this.highlight();
+    });
+    component.registerDomEvent(this.viewport, 'focusout', (ev) => {
+      if (this.nodeIndex(ev.relatedTarget) === null) {
+        this.keyboard = null;
+        this.highlight();
+      }
+    });
   }
 
   /** Draws the model. `domFocus` is the node that gets the keyboard focus after the render, or null. */
@@ -75,23 +99,30 @@ export class Diagram {
     const w = DEFAULT_LAYOUT.nodeWidth;
     const h = DEFAULT_LAYOUT.nodeHeight;
 
+    const half = (node: DisplayNode | undefined) => (node?.compact ? COMPACT_HEIGHT : h) / 2;
+
     const edges = svgEl('g', this.group, {}, 'concept-atlas-edges');
-    for (const [u, l] of covers) {
-      svgEl('line', edges, { x1: layout.x[u]!, y1: layout.y[u]! + h / 2, x2: layout.x[l]!, y2: layout.y[l]! - h / 2 }, 'concept-atlas-edge');
-    }
+    this.covers = covers;
+    this.edgeEls = covers.map(([u, l]) =>
+      svgEl('line', edges, { x1: layout.x[u]!, y1: layout.y[u]! + half(nodes[u]), x2: layout.x[l]!, y2: layout.y[l]! - half(nodes[l]) }, 'concept-atlas-edge'),
+    );
+    this.nodeEls = [];
 
     let focusEl: SVGGElement | null = null;
     for (const node of nodes) {
       const classes = ['concept-atlas-node'];
       if (node.zero) classes.push('is-zero');
       if (node.isStart) classes.push('is-start');
+      if (node.compact) classes.push('is-compact');
       if (model.focusIndex === node.index) classes.push('is-focused');
       const nodeTitleId = `${this.idPrefix}-node-${node.index}-title`;
+      const nw = node.compact ? COMPACT_WIDTH : w;
+      const nh = node.compact ? COMPACT_HEIGHT : h;
       const g = svgEl(
         'g',
         this.group,
         {
-          transform: `translate(${layout.x[node.index]! - w / 2},${layout.y[node.index]! - h / 2})`,
+          transform: `translate(${layout.x[node.index]! - nw / 2},${layout.y[node.index]! - nh / 2})`,
           tabindex: 0,
           role: 'button',
           'aria-labelledby': nodeTitleId,
@@ -101,12 +132,19 @@ export class Diagram {
         classes.join(' '),
       );
       svgEl('title', g, { id: nodeTitleId }).textContent = node.ariaLabel;
-      svgEl('rect', g, { width: w, height: h, rx: 6, ry: 6 }, 'concept-atlas-node-box');
+      svgEl('rect', g, { width: nw, height: nh, rx: 6, ry: 6 }, 'concept-atlas-node-box');
       const single = node.sublabel === '';
-      svgEl('text', g, { x: w / 2, y: single ? h / 2 + 4 : 19, 'text-anchor': 'middle' }, 'concept-atlas-node-label').textContent = node.label;
-      if (!single) svgEl('text', g, { x: w / 2, y: 37, 'text-anchor': 'middle' }, 'concept-atlas-node-support').textContent = node.sublabel;
+      svgEl('text', g, { x: nw / 2, y: single ? nh / 2 + 4 : 19, 'text-anchor': 'middle' }, node.compact ? 'concept-atlas-node-support' : 'concept-atlas-node-label').textContent = node.label;
+      if (!single) svgEl('text', g, { x: nw / 2, y: 37, 'text-anchor': 'middle' }, 'concept-atlas-node-support').textContent = node.sublabel;
       if (domFocus === node.index) focusEl = g;
+      this.nodeEls[node.index] = g;
     }
+
+    // A new render replaces the elements: the old hover and keyboard indexes are not valid.
+    this.hovered = null;
+    this.keyboard = null;
+    this.selected = model.focusIndex;
+    this.highlight();
 
     const key = `${layout.width}x${layout.height}:${nodes.map((n) => n.intent.join(',')).join('|')}`;
     if (key !== this.layoutKey) {
@@ -126,6 +164,26 @@ export class Diagram {
       el.setAttribute('aria-pressed', index === focusIndex ? 'true' : 'false');
       if (index === domFocus) el.focus({ preventScroll: true });
     }
+    this.selected = focusIndex;
+    this.highlight();
+  }
+
+  private setHovered(index: number | null): void {
+    if (index === this.hovered) return;
+    this.hovered = index;
+    this.highlight();
+  }
+
+  /** Marks the node under the pointer, else the node with the keyboard focus, else the focused concept, with all displayed nodes above it and the edges between them. */
+  private highlight(): void {
+    const target = this.hovered ?? this.keyboard ?? this.selected;
+    const valid = target !== null && target >= 0 && target < this.nodeEls.length;
+    this.group.classList.toggle('has-highlight', valid);
+    const above = valid ? nodesAbove(this.covers, target) : { nodes: [], edges: [] };
+    const nodes = new Set(above.nodes);
+    const edges = new Set(above.edges);
+    this.nodeEls.forEach((el, i) => el.classList.toggle('is-marked', nodes.has(i)));
+    this.edgeEls.forEach((el, i) => el.classList.toggle('is-marked', edges.has(this.covers[i]!)));
   }
 
   /** Fits the diagram to the viewport at a scale from 0.7 to 1. A larger diagram shows the start node at the top center. See `fitTransform`. */
@@ -221,6 +279,8 @@ export class Diagram {
       ArrowRight: 'right',
       Escape: 'escape',
     };
+    // Escape removes the focused concept. The node keeps the keyboard focus, but it is not marked until the focus moves.
+    if (ev.key === 'Escape') this.keyboard = null;
     if (ev.key === 'Enter' || ev.key === ' ') {
       ev.preventDefault();
       this.handlers.activate(index);

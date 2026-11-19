@@ -44,9 +44,9 @@ View options:
 Parts of the view:
 
 - Filters: one group of check boxes for each facet. Each value shows the number of matching notes. Selected values combine with AND. A value that all matching notes share has the mark "shared by all matching notes". A value that no matching note has is disabled. "Clear filters" removes the selected values, the search text and the focus.
-- Diagram: the concepts below the current filter. Each node shows the values that it adds to the concepts above it, and its number of notes. Drag to move the diagram. Use the mouse wheel or the buttons `+` and `−` to zoom. "Fit" and the initial view use a scale from 0.7 to 1. When the diagram fits into the view at a scale of 0.7 or more, it is centered. Else the scale is 0.7 and the top concept is at the top center of the view; drag to see the rest. Click a node, or press Enter or Space on it, to focus it. The arrow keys move the focus to a neighbour node. Escape removes the focus.
+- Diagram: the concepts below the current filter. Each node shows the values that it adds to the concepts above it, and its number of notes. A node that adds no value is small and shows only its number of notes. Point at a node, or move the keyboard focus to it: the diagram marks the node, all concepts above it and the edges between them. The values of the marked concepts together are the values of the node. The focused concept stays marked while the pointer is not on another node. Drag to move the diagram. Use the mouse wheel or the buttons `+` and `−` to zoom. "Fit" and the initial view use a scale from 0.7 to 1. When the diagram fits into the view at a scale of 0.7 or more, it is centered. Else the scale is 0.7 and the top concept is at the top center of the view; drag to see the rest. Click a node, or press Enter or Space on it, to focus it. The arrow keys move the focus to a neighbour node. Escape removes the focus.
 - Concept details: the current or focused concept, its number of notes, the values that all its notes share, and the list of matching notes. Click a note name to open the note (with Ctrl or Cmd: in a new tab). "Filter to this concept" sets the filter to the values of the concept.
-- Technique inspector: select "Inspect" next to a note. The inspector shows the recorded values of the note and the facets that are not annotated.
+- Note values: select "Values" next to a note. The section "Note values" shows the note name as a link, the recorded values of the note per facet and the facets that are not annotated. "Close" removes the selection.
 - Search: "Search note names" filters the note lists by name. It does not change the lattice.
 
 ## How to read the lattice
@@ -63,7 +63,7 @@ Parts of the view:
 
 ## Limitations
 
-- The filter, the focus, the search and the inspector are not saved in the `.base` file. They are lost when the view closes.
+- The filter, the focus, the search and the selected note are not saved in the `.base` file. They are lost when the view closes.
 - Value comparison ignores case. `Tree` and `tree` are one value. The label is the first spelling that occurs.
 - Links are compared by their display text, else by their target.
 - An attribute id is `<facet>:<value>`. When a facet key contains `:`, two different values can get the same id.

@@ -1,4 +1,4 @@
-// Display model of the view: filter groups with counts, the displayed part of the lattice, details and inspector. Pure: no DOM.
+// Display model of the view: filter groups with counts, the displayed part of the lattice, details and note values. Pure: no DOM.
 import type { AtlasData } from '../bases';
 import {
   type Concept,
@@ -49,6 +49,8 @@ export interface DisplayNode {
   ariaLabel: string;
   isStart: boolean;
   zero: boolean;
+  /** True for a node that adds no value to its displayed upper neighbours. The diagram draws it small, with only the number of notes. */
+  compact: boolean;
 }
 
 export interface NoteRef {
@@ -172,7 +174,7 @@ export interface ModelOptions {
   part?: DiagramPart | null;
 }
 
-/** The parts of the model that depend only on the data, the filter and `maxNodes`: not on the focus, the search or the inspector. */
+/** The parts of the model that depend only on the data, the filter and `maxNodes`: not on the focus, the search or the selected note. */
 export interface DiagramPart {
   key: string;
   selected: string[];
@@ -211,15 +213,20 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
     const values = intent.map((id) => labelOf.get(id) ?? id);
     let label: string;
     let sublabel = notesText(concept.support);
+    let compact = false;
     if (zero) label = ZERO_SUPPORT_TEXT;
     else if (isStart && !filterActive) {
       label = `All ${notesText(concept.support)}`;
       sublabel = '';
     } else if (reduced.length > 0) label = shorten(reduced.map((id) => labelOf.get(id) ?? id).join(', '), LABEL_MAX);
-    else label = 'Combines the values above';
+    else {
+      label = notesText(concept.support);
+      sublabel = '';
+      compact = true;
+    }
     const ariaValues = values.length > 0 ? `Values: ${values.join(', ')}` : 'No shared values';
     const ariaLabel = `${zero ? `${ZERO_SUPPORT_TEXT}. ` : ''}${notesText(concept.support)}. ${ariaValues}.`;
-    return { index, concept, intent, support: concept.support, reduced, label, sublabel, ariaLabel, isStart, zero };
+    return { index, concept, intent, support: concept.support, reduced, label, sublabel, ariaLabel, isStart, zero, compact };
   });
 
   return {
@@ -317,6 +324,37 @@ export function inspect(data: AtlasData, path: string | null): Inspection | null
   if (!object) return null;
   const ids = Object.values(object.attributes).flat();
   return { path: object.path, name: object.name, recorded: groupByFacet(data, ids), notAnnotated: [...object.unannotated] };
+}
+
+export interface NodesAbove {
+  /** The node and all nodes from which it can be reached through the cover edges, in ascending order. */
+  nodes: number[];
+  /** The cover edges with both ends in `nodes`. */
+  edges: Cover[];
+}
+
+/** The node `index`, all displayed nodes above it and the cover edges between these nodes. The union of their reduced labels is the intent of the node. */
+export function nodesAbove(covers: readonly Cover[], index: number): NodesAbove {
+  const uppers = new Map<number, number[]>();
+  for (const [u, l] of covers) {
+    const list = uppers.get(l);
+    if (list) list.push(u);
+    else uppers.set(l, [u]);
+  }
+  const seen = new Set<number>([index]);
+  const stack = [index];
+  while (stack.length > 0) {
+    for (const u of uppers.get(stack.pop()!) ?? []) {
+      if (!seen.has(u)) {
+        seen.add(u);
+        stack.push(u);
+      }
+    }
+  }
+  return {
+    nodes: [...seen].sort((a, b) => a - b),
+    edges: covers.filter(([u, l]) => seen.has(u) && seen.has(l)),
+  };
 }
 
 /** Neighbour of a node for keyboard moves: the displayed upper or lower neighbour with the nearest x, or the next node in the layer. */

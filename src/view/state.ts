@@ -7,7 +7,7 @@ export interface ViewState {
   selected: string[];
   /** The intent (attribute ids) of the focused concept. `null`: no focused concept. `[]` is the concept with the empty intent. */
   focus: string[] | null;
-  /** The path of the note in the inspector. */
+  /** The path of the note in the section "Note values". */
   selectedNote: string | null;
   /** Search text for the note lists. It does not change the lattice. */
   search: string;
@@ -34,7 +34,7 @@ export function toggleValue(state: ViewState, id: string): ViewState {
   return { ...state, selected };
 }
 
-/** Clears the filter, the search and the focus. The inspector keeps its note. */
+/** Clears the filter, the search and the focus. The selected note stays. */
 export function clearFilters(state: ViewState): ViewState {
   return { ...state, selected: [], search: '', focus: null };
 }

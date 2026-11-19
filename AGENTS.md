@@ -52,7 +52,7 @@ The runtime behavior in Obsidian has no automated tests. Do these steps by hand 
 3. Open `Visualization techniques.base`, view "Concept lattice". Make sure that the status shows the size of the full lattice and the number of shown concepts, and that `Not a technique.md` is not in the lattice.
 4. Select values in the filters. Make sure that the counts, the disabled values and the mark "shared by all matching notes" change.
 5. Click a node, then use the arrow keys and Escape. Use "Filter to this concept". Drag, zoom and "Fit" the diagram.
-6. Open a note from the note list. Use "Inspect" and make sure that facets without values show "not annotated".
+6. Open a note from the note list. Use "Values" and make sure that the section "Note values" shows, that facets without values show "not annotated", and that "Close" removes the section.
 7. Type in the search field. Make sure that only the note lists change.
 8. Change a property value of a note in `Techniques/`. Make sure that the view updates.
 9. Change the three view options. Make sure that the view uses the new values.

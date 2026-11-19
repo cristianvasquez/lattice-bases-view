@@ -1,7 +1,8 @@
 import { ListValue, StringValue } from 'obsidian';
 import { describe, expect, it } from 'vitest';
 import { buildAtlasData, resolveFacets, type AtlasData } from '../src/bases';
-import { buildModel, contextOf, matchesSearch, neighbourFor, type DisplayModel } from '../src/view/model';
+import { buildModel, contextOf, matchesSearch, neighbourFor, nodesAbove, type DisplayModel } from '../src/view/model';
+import type { Cover } from '../src/fca';
 import { clearFilters, filterToConcept, initialState, reconcileState, selectNote, setFocus, setSearch, toggleValue, type ViewState } from '../src/view/state';
 import { entry } from './bases-helpers';
 
@@ -112,6 +113,73 @@ describe('current concept', () => {
   });
 });
 
+describe('compact nodes', () => {
+  it('draws a node without an own value as a compact node with only the number of notes', () => {
+    const m = model(initialState());
+    const bubble = m.nodes.find((n) => n.support === 1 && n.intent.length === 4)!;
+    expect(bubble.reduced).toEqual([]);
+    expect(bubble.compact).toBe(true);
+    expect(bubble.label).toBe('1 note');
+    expect(bubble.sublabel).toBe('');
+    expect(bubble.ariaLabel).toBe('1 note. Values: structure: graph, structure: tree, data: hierarchical, data: network.');
+    for (const n of m.nodes.filter((n) => !n.compact)) expect(n.reduced.length > 0 || n.isStart || n.zero).toBe(true);
+    expect(m.nodes.some((n) => n.label.includes('Combines'))).toBe(false);
+  });
+
+  it('keeps the text of the start node and of the zero-support node', () => {
+    const m = model(initialState());
+    expect(m.nodes[0]!.compact).toBe(false);
+    expect(m.nodes[0]!.label).toBe('All 4 notes');
+    const zero = m.nodes.find((n) => n.zero)!;
+    expect(zero.compact).toBe(false);
+    expect(zero.label).toBe('No note has all of these values');
+  });
+});
+
+describe('nodesAbove', () => {
+  // 0 -> 1, 0 -> 2, 1 -> 3, 2 -> 3, 2 -> 4, 3 -> 5.
+  const covers: Cover[] = [
+    [0, 1],
+    [0, 2],
+    [1, 3],
+    [2, 3],
+    [2, 4],
+    [3, 5],
+  ];
+
+  it('gives only the start node for the start node', () => {
+    expect(nodesAbove(covers, 0)).toEqual({ nodes: [0], edges: [] });
+  });
+
+  it('gives both branches up to the start node for a node with two upper neighbours', () => {
+    const above = nodesAbove(covers, 3);
+    expect(above.nodes).toEqual([0, 1, 2, 3]);
+    expect(above.edges).toEqual([
+      [0, 1],
+      [0, 2],
+      [1, 3],
+      [2, 3],
+    ]);
+  });
+
+  it('leaves out the nodes that are not above and gives only edges with both ends in the set', () => {
+    const above = nodesAbove(covers, 5);
+    expect(above.nodes).toEqual([0, 1, 2, 3, 5]);
+    expect(above.nodes).not.toContain(4);
+    const set = new Set(above.nodes);
+    for (const [u, l] of above.edges) expect(set.has(u) && set.has(l)).toBe(true);
+    expect(above.edges).not.toContainEqual([2, 4]);
+  });
+
+  it('gives the union of the reduced labels as the intent in the model', () => {
+    const m = model(initialState());
+    for (const node of m.nodes.filter((n) => !n.zero)) {
+      const values = new Set(nodesAbove(m.covers, node.index).nodes.flatMap((i) => m.nodes[i]!.reduced));
+      expect([...values].sort()).toEqual([...node.intent].sort());
+    }
+  });
+});
+
 describe('search', () => {
   it('filters the note list but does not change the concept set', () => {
     const plain = model(initialState());
@@ -167,7 +235,7 @@ describe('focus and details', () => {
   });
 });
 
-describe('inspector', () => {
+describe('note values', () => {
   it('lists the recorded values and the facets that are not annotated', () => {
     const m = model(selectNote(initialState(), 'T/Dot.md'));
     expect(m.inspection).toEqual({

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_FACETS } from '../src/bases';
 import { readViewConfig } from '../src/view/config';
-import { EXPLANATION, fullLatticeText, noValuesText, shorten, shownText } from '../src/view/text';
+import { EXPLANATION, HIGHLIGHT_HINT, fullLatticeText, noValuesText, shorten, shownText } from '../src/view/text';
 
 describe('status text', () => {
   it('separates the full lattice from the displayed part', () => {
@@ -16,6 +16,10 @@ describe('status text', () => {
     expect(noValuesText(['structure', 'data'])).toContain('"structure", "data"');
     for (const text of [EXPLANATION, noValuesText(['x']), noValuesText([])]) expect(text).not.toMatch(/does not have/i);
     expect(EXPLANATION).toContain("not annotated");
+  });
+
+  it('gives the reading rule of the highlight', () => {
+    expect(HIGHLIGHT_HINT).toBe('Point at a concept: the marked concepts above it give its values.');
   });
 
   it('shortens long labels with an ellipsis', () => {

@@ -18,6 +18,7 @@ import {
 } from './state';
 import {
   EXPLANATION,
+  HIGHLIGHT_HINT,
   type FullLatticeState,
   errorText,
   fullLatticeText,
@@ -57,6 +58,7 @@ export class ConceptLatticeView extends BasesView {
   private readonly statusEl: HTMLDivElement;
   private readonly warningsEl: HTMLDivElement;
   private readonly toolbarEl: HTMLDivElement;
+  private readonly hintEl: HTMLDivElement;
   private readonly messageEl: HTMLDivElement;
   private readonly diagram: Diagram;
   private readonly detailsEl: HTMLDivElement;
@@ -91,6 +93,7 @@ export class ConceptLatticeView extends BasesView {
     const zoomIn = this.toolbarEl.createEl('button', { text: '+', attr: { 'aria-label': 'Zoom in' } });
     const zoomOut = this.toolbarEl.createEl('button', { text: '−', attr: { 'aria-label': 'Zoom out' } });
     const fit = this.toolbarEl.createEl('button', { text: 'Fit', attr: { 'aria-label': 'Fit the diagram to the view' } });
+    this.hintEl = center.createDiv({ cls: 'concept-atlas-hint', text: HIGHLIGHT_HINT });
     this.messageEl = center.createDiv({ cls: 'concept-atlas-message' });
     this.diagram = new Diagram(center, this, `${idPrefix}-diagram`, {
       activate: (index) => this.focusNode(index),
@@ -197,13 +200,15 @@ export class ConceptLatticeView extends BasesView {
   }
 
   private onDetailsClick(ev: MouseEvent): void {
-    const target = ev.target instanceof Element ? ev.target.closest<HTMLElement>('[data-path], [data-inspect], [data-action]') : null;
+    const target = ev.target instanceof Element ? ev.target.closest<HTMLElement>('[data-path], [data-show-values], [data-action]') : null;
     if (!target) return;
     if (target.dataset.path !== undefined) {
       ev.preventDefault();
       void this.app.workspace.openLinkText(target.dataset.path, '', Keymap.isModEvent(ev));
-    } else if (target.dataset.inspect !== undefined) {
-      this.update(selectNote(this.state, target.dataset.inspect));
+    } else if (target.dataset.showValues !== undefined) {
+      this.update(selectNote(this.state, target.dataset.showValues));
+    } else if (target.dataset.action === 'close-note') {
+      this.update(selectNote(this.state, null));
     } else if (target.dataset.action === 'filter-to' && this.model?.details) {
       // The start node of the new diagram (index 0) gets the keyboard focus; the button becomes disabled.
       this.update(filterToConcept(this.state, this.model.details.intent), 0);
@@ -229,18 +234,19 @@ export class ConceptLatticeView extends BasesView {
 
     const model = this.model;
     const ok = model?.kind === 'ok';
-    // The filters and the diagram depend only on the part. A search, focus or inspector change keeps them and their DOM.
+    // The filters and the diagram depend only on the part. A search, focus or selected note change keeps them and their DOM.
     const partChanged = model?.part == null || model.part !== previousPart;
     this.messageEl.toggleClass('is-hidden', message === null);
     this.messageEl.setText(message ?? '');
     this.toolbarEl.toggleClass('is-hidden', !ok);
+    this.hintEl.toggleClass('is-hidden', !ok);
     this.diagram.viewport.toggleClass('is-hidden', !ok);
     if (partChanged) keepFocus(this.groupsEl, ['data-attribute'], () => this.renderFilters());
     this.renderStatus();
     this.renderWarnings();
     if (ok && partChanged) this.diagram.render(model, domFocus);
     else if (ok) this.diagram.setFocus(model.focusIndex, domFocus);
-    keepFocus(this.detailsEl, ['data-inspect', 'data-path', 'data-action'], () => this.renderDetails());
+    keepFocus(this.detailsEl, ['data-show-values', 'data-path', 'data-action'], () => this.renderDetails());
   }
 
   private renderStatus(): void {
@@ -303,14 +309,14 @@ export class ConceptLatticeView extends BasesView {
       for (const note of details.notes) this.renderNote(list.createEl('li'), note);
     }
 
-    const inspector = this.detailsEl.createDiv({ cls: 'concept-atlas-inspector' });
-    inspector.createEl('h4', { text: 'Technique inspector' });
+    // The section "Note values" is in the DOM only when a note is selected.
     const inspection = model.inspection;
-    if (!inspection) {
-      inspector.createDiv({ cls: 'concept-atlas-muted', text: "Select 'Inspect' next to a note to see its recorded values." });
-      return;
-    }
-    const title = inspector.createDiv({ cls: 'concept-atlas-inspected' });
+    if (!inspection) return;
+    const inspector = this.detailsEl.createDiv({ cls: 'concept-atlas-note-values' });
+    const head = inspector.createDiv({ cls: 'concept-atlas-note-values-head' });
+    head.createEl('h4', { text: 'Note values' });
+    head.createEl('button', { cls: 'concept-atlas-close', text: 'Close', attr: { 'data-action': 'close-note' } });
+    const title = inspector.createDiv({ cls: 'concept-atlas-selected-note' });
     title.createEl('a', { cls: 'internal-link', text: inspection.name, href: inspection.path, attr: { 'data-path': inspection.path } });
     inspector.createDiv({ cls: 'concept-atlas-subhead', text: 'Recorded values' });
     if (inspection.recorded.length > 0) this.renderFacetValues(inspector, inspection.recorded);
@@ -333,10 +339,16 @@ export class ConceptLatticeView extends BasesView {
   }
 
   private renderNote(item: HTMLElement, note: NoteRef): void {
+    const selected = this.state.selectedNote === note.path;
     item.addClass('concept-atlas-note');
+    item.toggleClass('is-selected', selected);
     item.createEl('a', { cls: 'internal-link', text: note.name, href: note.path, attr: { 'data-path': note.path } });
-    const inspect = item.createEl('button', { cls: 'concept-atlas-inspect', text: 'Inspect', attr: { 'data-inspect': note.path, 'aria-label': `Inspect ${note.name}` } });
-    inspect.toggleClass('is-active', this.state.selectedNote === note.path);
+    const button = item.createEl('button', {
+      cls: 'concept-atlas-values-button',
+      text: 'Values',
+      attr: { 'data-show-values': note.path, 'aria-label': `Show the values of ${note.name}`, 'aria-pressed': selected ? 'true' : 'false' },
+    });
+    button.toggleClass('is-active', selected);
   }
 }
 
