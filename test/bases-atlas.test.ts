@@ -1,6 +1,6 @@
 import { LinkValue, ListValue, NullValue, StringValue } from 'obsidian';
 import { describe, expect, it } from 'vitest';
-import { buildAtlasData, resolveFacets } from '../src/bases';
+import { buildAtlasData, facetsFromProperties, resolveFacets, splitTag } from '../src/bases';
 import { entry, FakeErrorValue } from './bases-helpers';
 
 const s = (text: string) => new StringValue(text);
@@ -104,5 +104,166 @@ describe('buildAtlasData', () => {
       ['A/Heatmap.md', 'data:quantitative'],
       ['B/Heatmap.md', 'data:quantitative'],
     ]);
+  });
+});
+
+describe('splitTag', () => {
+  it('removes one leading # and gives a flat tag for one segment', () => {
+    expect(splitTag('#python')).toEqual({ value: 'python' });
+    expect(splitTag('python')).toEqual({ value: 'python' });
+    expect(splitTag('##python')).toEqual({ value: '#python' });
+  });
+
+  it('gives no value when there is no segment', () => {
+    expect(splitTag('')).toBeUndefined();
+    expect(splitTag('#')).toBeUndefined();
+    expect(splitTag('#//')).toBeUndefined();
+  });
+
+  it('ignores empty segments', () => {
+    expect(splitTag('/python/')).toEqual({ value: 'python' });
+    expect(splitTag('#pimo//language/python/')).toEqual({ parent: 'pimo/language', value: 'python' });
+  });
+
+  it('gives the parent path and the last segment for three and four segments', () => {
+    expect(splitTag('pimo/language/python')).toEqual({ parent: 'pimo/language', value: 'python' });
+    expect(splitTag('#Pimo/Language/Python')).toEqual({ parent: 'Pimo/Language', value: 'Python' });
+    expect(splitTag('a/b/c/d')).toEqual({ parent: 'a/b/c', value: 'd' });
+    expect(splitTag('viz/family')).toEqual({ parent: 'viz', value: 'family' });
+  });
+});
+
+describe('buildAtlasData with nested tags', () => {
+  const tagFacets = facetsFromProperties(['note.structure', 'file.tags']).facets;
+
+  it('makes a nested tag an attribute of a derived facet and omits the tags facet with no flat tag', () => {
+    const data = buildAtlasData(
+      [
+        entry('T/A.md', { 'file.tags': list('#pimo/language/python', '#viz/medium/screen') }),
+        entry('T/B.md', { 'file.tags': list('pimo/language/rust'), 'note.structure': s('tree') }),
+      ],
+      tagFacets,
+    );
+    expect(data.facets).toEqual([
+      { key: 'structure', propertyId: 'note.structure' },
+      { key: '#pimo/language', propertyId: 'file.tags', tags: true, name: 'language' },
+      { key: '#viz/medium', propertyId: 'file.tags', tags: true, name: 'medium' },
+    ]);
+    expect(data.attributes).toEqual([
+      { id: 'structure:tree', facet: 'structure', label: 'tree' },
+      { id: '#pimo/language:python', facet: '#pimo/language', label: 'python' },
+      { id: '#pimo/language:rust', facet: '#pimo/language', label: 'rust' },
+      { id: '#viz/medium:screen', facet: '#viz/medium', label: 'screen' },
+    ]);
+    expect(data.incidence).toEqual([
+      ['T/A.md', '#pimo/language:python'],
+      ['T/A.md', '#viz/medium:screen'],
+      ['T/B.md', 'structure:tree'],
+      ['T/B.md', '#pimo/language:rust'],
+    ]);
+    expect(data.objects[0]?.attributes).toEqual({
+      structure: [],
+      '#pimo/language': ['#pimo/language:python'],
+      '#viz/medium': ['#viz/medium:screen'],
+    });
+    expect(data.objects[0]?.unannotated).toEqual(['structure']);
+    expect(data.objects[1]?.unannotated).toEqual(['#viz/medium']);
+    expect(data.warnings).toEqual([]);
+  });
+
+  it('folds the case of the parent path and of the value, and keeps the first spelling', () => {
+    const data = buildAtlasData(
+      [entry('T/A.md', { 'file.tags': list('Pimo/Language/Python') }), entry('T/B.md', { 'file.tags': list('pimo/language/python') })],
+      tagFacets,
+    );
+    expect(data.facets.map((f) => [f.key, f.name])).toEqual([
+      ['structure', undefined],
+      ['#pimo/language', 'Language'],
+    ]);
+    expect(data.attributes).toEqual([{ id: '#pimo/language:python', facet: '#pimo/language', label: 'Python' }]);
+    expect(data.incidence).toEqual([
+      ['T/A.md', '#pimo/language:python'],
+      ['T/B.md', '#pimo/language:python'],
+    ]);
+  });
+
+  it('keeps the tags facet for flat tags, before its derived facets, and adds no ancestor tags', () => {
+    const data = buildAtlasData(
+      [entry('T/A.md', { 'file.tags': list('#draft', '#pimo/language/python') }), entry('T/B.md', { 'file.tags': list('viz/family/tree') })],
+      tagFacets,
+    );
+    expect(data.facets.map((f) => f.key)).toEqual(['structure', 'tags', '#pimo/language', '#viz/family']);
+    expect(data.attributes.map((a) => a.id)).toEqual(['tags:draft', '#pimo/language:python', '#viz/family:tree']);
+    expect(data.attributes[0]?.label).toBe('draft');
+    expect(data.objects[0]?.attributes['tags']).toEqual(['tags:draft']);
+    expect(data.objects[1]?.attributes['tags']).toEqual([]);
+    expect(data.objects[1]?.unannotated).toEqual(['structure', 'tags', '#pimo/language']);
+    expect(data.objects[0]?.unannotated).toEqual(['structure', '#viz/family']);
+  });
+
+  it('keeps the tags facet when a note has an error for it, and the note is not annotated for each derived facet', () => {
+    const data = buildAtlasData(
+      [entry('T/A.md', { 'file.tags': new FakeErrorValue('Bad') }), entry('T/B.md', { 'file.tags': list('pimo/language/python') })],
+      tagFacets,
+    );
+    expect(data.facets.map((f) => f.key)).toEqual(['structure', 'tags', '#pimo/language']);
+    expect(data.objects[0]?.errors).toEqual(['tags']);
+    expect(data.objects[0]?.unannotated).toEqual(['structure', 'tags', '#pimo/language']);
+    expect(data.objects[0]?.attributes['#pimo/language']).toEqual([]);
+    expect(data.warnings).toHaveLength(1);
+    expect(data.warnings[0]).toContain('"tags"');
+  });
+
+  it('marks notes with no tags as not annotated for each derived facet', () => {
+    const data = buildAtlasData(
+      [entry('T/A.md', {}), entry('T/B.md', { 'file.tags': list('viz/family/tree') })],
+      tagFacets,
+    );
+    expect(data.facets.map((f) => f.key)).toEqual(['structure', '#viz/family']);
+    expect(data.objects[0]?.attributes).toEqual({ structure: [], '#viz/family': [] });
+    expect(data.objects[0]?.unannotated).toEqual(['structure', '#viz/family']);
+    expect(data.incidence).toEqual([['T/B.md', '#viz/family:tree']]);
+  });
+
+  it('gives a derived facet its key as name when its name collides with another derived facet', () => {
+    const data = buildAtlasData([entry('T/A.md', { 'file.tags': list('a/language/python', 'b/Language/rust', 'c/medium/x') })], tagFacets);
+    expect(data.facets.map((f) => [f.key, f.name])).toEqual([
+      ['structure', undefined],
+      ['#a/language', '#a/language'],
+      ['#b/language', '#b/language'],
+      ['#c/medium', 'medium'],
+    ]);
+  });
+
+  it('gives a derived facet its key as name when its name collides with a property facet', () => {
+    const facets = facetsFromProperties(['note.language', 'note.medium', 'file.tags'], (id) => (id === 'note.medium' ? 'Medium' : '')).facets;
+    const data = buildAtlasData(
+      [entry('T/A.md', { 'note.language': s('python'), 'file.tags': list('pimo/language/python', 'viz/medium/screen', 'viz/family/tree') })],
+      facets,
+    );
+    expect(data.facets.map((f) => [f.key, f.name])).toEqual([
+      ['language', undefined],
+      ['medium', 'Medium'],
+      ['#pimo/language', '#pimo/language'],
+      ['#viz/family', 'family'],
+      ['#viz/medium', '#viz/medium'],
+    ]);
+    expect(data.attributes.map((a) => a.id)).toEqual([
+      'language:python',
+      '#pimo/language:python',
+      '#viz/family:tree',
+      '#viz/medium:screen',
+    ]);
+  });
+
+  it('treats note.tags like file.tags', () => {
+    const data = buildAtlasData([entry('T/A.md', { 'note.tags': list('#viz/family/tree') })], facetsFromProperties(['note.tags']).facets);
+    expect(data.facets).toEqual([{ key: '#viz/family', propertyId: 'note.tags', tags: true, name: 'family' }]);
+    expect(data.incidence).toEqual([['T/A.md', '#viz/family:tree']]);
+  });
+
+  it('does not split a value of a facet without the tags flag', () => {
+    const data = buildAtlasData([entry('T/A.md', { 'note.structure': s('a/b/c') })], tagFacets);
+    expect(data.attributes.map((a) => a.id)).toEqual(['structure:a/b/c']);
   });
 });

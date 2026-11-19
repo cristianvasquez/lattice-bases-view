@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { facetsFromProperties, resolveFacets } from '../src/bases';
+import { TAG_PROPERTIES, facetsFromProperties, resolveFacets } from '../src/bases';
 
 describe('resolveFacets', () => {
   it('keeps an input with a type prefix as the property id', () => {
@@ -55,7 +55,7 @@ describe('facetsFromProperties', () => {
       { key: 'structure', propertyId: 'note.structure' },
       { key: 'folder', propertyId: 'file.folder' },
       { key: 'score', propertyId: 'formula.score' },
-      { key: 'tags', propertyId: 'file.tags' },
+      { key: 'tags', propertyId: 'file.tags', tags: true },
       { key: 'links', propertyId: 'file.links' },
     ]);
     expect(warnings).toEqual([]);
@@ -80,5 +80,21 @@ describe('facetsFromProperties', () => {
   it('gives no facet when only properties that identify one note are selected', () => {
     expect(facetsFromProperties(['file.name', 'file.path'])).toEqual({ facets: [], warnings: [] });
     expect(facetsFromProperties([])).toEqual({ facets: [], warnings: [] });
+  });
+});
+
+describe('tags facets', () => {
+  it('lists file.tags and note.tags as tag properties', () => {
+    expect([...TAG_PROPERTIES]).toEqual(['file.tags', 'note.tags']);
+  });
+
+  it('sets the tags flag for file.tags and note.tags only', () => {
+    expect(facetsFromProperties(['file.tags']).facets).toEqual([{ key: 'tags', propertyId: 'file.tags', tags: true }]);
+    expect(facetsFromProperties(['note.tags']).facets).toEqual([{ key: 'tags', propertyId: 'note.tags', tags: true }]);
+    expect(resolveFacets(['tags'], []).facets).toEqual([{ key: 'tags', propertyId: 'note.tags', tags: true }]);
+    expect(facetsFromProperties(['formula.tags', 'note.topics']).facets).toEqual([
+      { key: 'tags', propertyId: 'formula.tags' },
+      { key: 'topics', propertyId: 'note.topics' },
+    ]);
   });
 });

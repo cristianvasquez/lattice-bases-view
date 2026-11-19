@@ -39,6 +39,7 @@ Facets: select the properties to compare in the Properties menu of the view (the
 - File properties: `file.folder` (the folder of the note), `file.tags` (the tags), `file.links` (the links in the note).
 - Formulas of the base.
 - The plugin ignores the properties that identify one note: `file.name`, `file.basename`, `file.path`, `file.file`. They give one value per note and no shared concept.
+- Tags (`file.tags`, `note.tags`): a flat tag such as `#draft` is a value of the tags facet. A nested tag is a value of a facet that comes from the tag path: `#pimo/language/python` gives the facet `language` with the value `python`. All the segments but the last are the parent path; each parent path is one facet, named with its last segment. When two facets have the same name, the facet from tags shows its path (`#pimo/language`). A tag facet and a property with the same name stay two facets. The parent tags (`#pimo`, `#pimo/language`) do not give values. When no note has a flat tag, the view does not show the tags facet itself.
 - Two selected properties with the same name without the type prefix (for example `note.score` and `formula.score`) give the same facet key. The view uses the first one and shows a warning.
 
 In the `.base` file, the selected properties are the key `order` of the view.
@@ -75,7 +76,7 @@ The view does not show the properties of a single note. Use the Table layout of 
 
 ## Sample vault
 
-`test-vault/` has 14 notes about visualization techniques in `Techniques/`, with list properties `structure`, `data`, `task` and `interaction`. Some notes do not have values for all facets. `Visualization techniques.base` shows the notes of `Techniques/` with the layout "Concept lattice" (selected properties `structure`, `data`, `task`, `interaction`) and as a table. `Not a technique.md` is outside `Techniques/`, so the filter of the base excludes it.
+`test-vault/` has 14 notes about visualization techniques in `Techniques/`, with list properties `structure`, `data`, `task` and `interaction`. Five notes have nested tags with the parent paths `viz/family` and `viz/medium`, and one note has the flat tag `classic`. Some notes do not have values for all facets. `Visualization techniques.base` shows the notes of `Techniques/` with the layout "Concept lattice" (selected properties `structure`, `data`, `task`, `interaction`, `file.tags`) and as a table. `Not a technique.md` is outside `Techniques/`, so the filter of the base excludes it.
 
 ## Limitations
 

@@ -4,8 +4,9 @@ import { buildAtlasDataWith, type AtlasData } from './atlas';
 import type { FacetSpec } from './facets';
 import { convertValue } from './values';
 
-export type { AtlasAttribute, AtlasData, AtlasObject, ConvertedValue } from './atlas';
-export { NOTE_IDENTITY_PROPERTIES, facetsFromProperties, resolveFacets, type FacetSpec } from './facets';
+export type { AtlasAttribute, AtlasData, AtlasObject, ConvertedValue, TagParts } from './atlas';
+export { splitTag } from './atlas';
+export { NOTE_IDENTITY_PROPERTIES, TAG_PROPERTIES, facetsFromProperties, resolveFacets, type FacetSpec } from './facets';
 export { convertValue } from './values';
 
 /** Converts the entries that Bases supplies into objects, attributes and incidence. Object identity is the file path. */

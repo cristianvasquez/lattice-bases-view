@@ -1,12 +1,19 @@
 // Facet configuration. No runtime import of `obsidian`.
 import type { BasesPropertyId } from 'obsidian';
 
-/** One facet: a property of Bases that gives attributes. `key` is the property name without the type prefix. `name` is the display name; without it the key is shown. */
+/**
+ * One facet: a property of Bases that gives attributes. `key` is the property name without the type prefix. `name` is the display name; without it the key is shown.
+ * `tags` is set for a tags property (`TAG_PROPERTIES`) and for the facets that are derived from nested tags (`buildAtlasDataWith` in `atlas.ts`).
+ */
 export interface FacetSpec {
   key: string;
   propertyId: BasesPropertyId;
   name?: string;
+  tags?: true;
 }
+
+/** Properties whose values are tags. A nested tag of these properties gives an attribute of a derived facet. */
+export const TAG_PROPERTIES: readonly BasesPropertyId[] = ['file.tags', 'note.tags'];
 
 /** File properties that identify one note. They give one value per note and no shared concept, so they are not facets. */
 export const NOTE_IDENTITY_PROPERTIES: readonly BasesPropertyId[] = ['file.name', 'file.basename', 'file.path', 'file.file'];
@@ -38,7 +45,10 @@ function collectFacets(candidates: { input: string; propertyId: BasesPropertyId;
       continue;
     }
     seen.set(key, propertyId);
-    facets.push(name === undefined ? { key, propertyId } : { key, propertyId, name });
+    const facet: FacetSpec = { key, propertyId };
+    if (name !== undefined) facet.name = name;
+    if (TAG_PROPERTIES.includes(propertyId)) facet.tags = true;
+    facets.push(facet);
   }
   return { facets, warnings };
 }

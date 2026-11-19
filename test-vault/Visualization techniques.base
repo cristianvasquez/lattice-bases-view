@@ -9,6 +9,7 @@ views:
       - data
       - task
       - interaction
+      - file.tags
   - type: table
     name: Table
     order:
