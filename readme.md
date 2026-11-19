@@ -39,12 +39,12 @@ View options:
 | --- | --- | --- | --- |
 | Facet properties | `structure`, `data`, `task`, `interaction` | | The properties that give the values. A name without a prefix is a note property, or a formula when only a formula with that name exists. You can also write `note.`, `formula.` or `file.` before the name. |
 | Concept budget (full lattice) | 5000 | 500 to 20000, step 500 | The maximum number of concepts that the plugin computes for the full lattice. |
-| Concepts in the diagram | 40 | 10 to 150, step 5 | The maximum number of concepts in the diagram. |
+| Concepts in the diagram | 20 | 10 to 150, step 5 | The maximum number of concepts in the diagram. |
 
 Parts of the view:
 
 - Filters: one group of check boxes for each facet. Each value shows the number of matching notes. Selected values combine with AND. A value that all matching notes share has the mark "shared by all matching notes". A value that no matching note has is disabled. "Clear filters" removes the selected values, the search text and the focus.
-- Diagram: the concepts below the current filter. Each node shows the values that it adds to the concepts above it, and its number of notes. Drag to move the diagram. Use the mouse wheel or the buttons `+` and `−` to zoom. "Fit" fits the diagram to the view. Click a node, or press Enter or Space on it, to focus it. The arrow keys move the focus to a neighbour node. Escape removes the focus.
+- Diagram: the concepts below the current filter. Each node shows the values that it adds to the concepts above it, and its number of notes. Drag to move the diagram. Use the mouse wheel or the buttons `+` and `−` to zoom. "Fit" and the initial view use a scale from 0.7 to 1. When the diagram fits into the view at a scale of 0.7 or more, it is centered. Else the scale is 0.7 and the top concept is at the top center of the view; drag to see the rest. Click a node, or press Enter or Space on it, to focus it. The arrow keys move the focus to a neighbour node. Escape removes the focus.
 - Concept details: the current or focused concept, its number of notes, the values that all its notes share, and the list of matching notes. Click a note name to open the note (with Ctrl or Cmd: in a new tab). "Filter to this concept" sets the filter to the values of the concept.
 - Technique inspector: select "Inspect" next to a note. The inspector shows the recorded values of the note and the facets that are not annotated.
 - Search: "Search note names" filters the note lists by name. It does not change the lattice.
@@ -67,7 +67,7 @@ Parts of the view:
 - Value comparison ignores case. `Tree` and `tree` are one value. The label is the first spelling that occurs.
 - Links are compared by their display text, else by their target.
 - An attribute id is `<facet>:<value>`. When a facet key contains `:`, two different values can get the same id.
-- The diagram shows at most "Concepts in the diagram" concepts (`maxNodes`).
+- The diagram shows at most "Concepts in the diagram" concepts (`maxNodes`, default 20).
 - The plugin does not show implications.
 - The computation runs on the UI thread in time slices, not in a worker. `buildLattice` gives control to the event loop only between whole concepts. On a base with thousands of notes and hundreds of distinct values, one step can block the UI.
 - The diagram part is computed on the UI thread for each filter change.

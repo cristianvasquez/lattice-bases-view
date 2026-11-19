@@ -13,6 +13,8 @@ export interface BuildLatticeOptions {
   sliceMs?: number;
   /** When the signal aborts, the promise resolves with status 'cancelled'. */
   signal?: AbortSignal;
+  /** When false, the cover relations are not computed and `covers` is empty. Default true. */
+  covers?: boolean;
 }
 
 export interface LatticeResult {
@@ -22,7 +24,7 @@ export interface LatticeResult {
    * 'cancelled': the concepts computed before the signal aborted.
    */
   concepts: Concept[];
-  /** The Hasse diagram as cover pairs of indexes in `concepts`. Empty unless status is 'complete'. */
+  /** The Hasse diagram as cover pairs of indexes in `concepts`. Empty unless status is 'complete' and the option `covers` is not false. */
   covers: Cover[];
   status: LatticeStatus;
 }
@@ -36,7 +38,7 @@ function yieldToEventLoop(): Promise<void> {
  * milliseconds, in the enumeration and in the cover computation. Resolves, never rejects, on cancellation.
  */
 export async function buildLattice(ctx: FormalContext, options: BuildLatticeOptions): Promise<LatticeResult> {
-  const { maxConcepts, sliceMs = 12, signal } = options;
+  const { maxConcepts, sliceMs = 12, signal, covers: withCovers = true } = options;
   if (Number.isNaN(maxConcepts) || maxConcepts < 0) throw new RangeError(`maxConcepts must be a number ≥ 0: ${maxConcepts}`);
   const concepts: Concept[] = [];
   let sliceStart = Date.now();
@@ -54,6 +56,7 @@ export async function buildLattice(ctx: FormalContext, options: BuildLatticeOpti
     concepts.push(concept);
     if (await sliceOver()) return { concepts, covers: [], status: 'cancelled' };
   }
+  if (!withCovers) return { concepts, covers: [], status: 'complete' };
 
   const indexByExtent = new Map<string, number>();
   concepts.forEach((c, i) => indexByExtent.set(c.extent.key(), i));

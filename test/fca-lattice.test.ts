@@ -130,6 +130,18 @@ describe('buildLattice budget, cancellation and time slices', () => {
     expect(exact.status).toBe('complete');
   });
 
+  it('with covers: false gives the same concepts and status and no covers', async () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const ctx = toContext(randomPlainContext(seed, 7, 6, true));
+      const full = await buildLattice(ctx, { maxConcepts: 1000 });
+      const bare = await buildLattice(ctx, { maxConcepts: 1000, covers: false });
+      expect(bare.status).toBe('complete');
+      expect(bare.concepts.map(conceptKey)).toEqual(full.concepts.map(conceptKey));
+      expect(bare.covers).toEqual([]);
+      expect(full.concepts.length <= 1 || full.covers.length > 0).toBe(true);
+    }
+  });
+
   it("resolves with 'cancelled' for an aborted signal", async () => {
     const ctx = toContext(randomPlainContext(3, 8, 8, true));
     const controller = new AbortController();

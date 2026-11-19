@@ -147,7 +147,7 @@ export class ConceptLatticeView extends BasesView {
     const controller = new AbortController();
     this.abort = controller;
     this.lattice = { kind: 'running' };
-    buildLattice(ctx, { maxConcepts, signal: controller.signal })
+    buildLattice(ctx, { maxConcepts, signal: controller.signal, covers: false })
       .then((result) => {
         if (controller.signal.aborted || result.status === 'cancelled') return;
         this.lattice = { kind: result.status, count: result.concepts.length };
@@ -193,7 +193,8 @@ export class ConceptLatticeView extends BasesView {
     } else if (target.dataset.inspect !== undefined) {
       this.update(selectNote(this.state, target.dataset.inspect));
     } else if (target.dataset.action === 'filter-to' && this.model?.details) {
-      this.update(filterToConcept(this.state, this.model.details.intent));
+      // The start node of the new diagram (index 0) gets the keyboard focus; the button becomes disabled.
+      this.update(filterToConcept(this.state, this.model.details.intent), 0);
     }
   }
 

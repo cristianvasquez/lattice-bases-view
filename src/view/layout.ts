@@ -144,3 +144,37 @@ export function layoutDiagram(count: number, edges: readonly Edge[], start = 0, 
   });
   return { layer, layers, x, y, width, height };
 }
+
+/** The smallest scale of the initial view and of "Fit". Below it the node labels are not readable. */
+export const MIN_FIT_SCALE = 0.7;
+
+export interface FitTransform {
+  /** Translation of the graph origin in region coordinates. */
+  x: number;
+  y: number;
+  /** Scale. */
+  k: number;
+}
+
+/**
+ * The transform of the initial view and of "Fit". `graph` is the size of the graph, `start` is the top center of the start node in graph
+ * coordinates, `region` is the size of the visible region, `pad` is the padding.
+ * When the graph fits at a scale of MIN_FIT_SCALE or more, it is centered at the largest scale that fits, but not larger than 1.
+ * Otherwise the scale is MIN_FIT_SCALE and the start node is at the top center of the region; the rest of the graph is outside the region.
+ * An empty region or an empty graph gives scale 1 and translation (pad, pad).
+ */
+export function fitTransform(
+  graph: { width: number; height: number },
+  start: { x: number; y: number },
+  region: { width: number; height: number },
+  pad: number,
+): FitTransform {
+  const finite = [graph.width, graph.height, start.x, start.y, region.width, region.height, pad].every(Number.isFinite);
+  if (!finite || region.width <= 0 || region.height <= 0 || graph.width <= 0 || graph.height <= 0) return { x: pad, y: pad, k: 1 };
+  const k = Math.min(1, (region.width - 2 * pad) / graph.width, (region.height - 2 * pad) / graph.height);
+  if (k >= MIN_FIT_SCALE) {
+    return { x: (region.width - graph.width * k) / 2, y: Math.max(pad, (region.height - graph.height * k) / 2), k };
+  }
+  const s = MIN_FIT_SCALE;
+  return { x: region.width / 2 - start.x * s, y: pad - start.y * s, k: s };
+}

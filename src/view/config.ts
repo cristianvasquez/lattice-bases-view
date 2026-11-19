@@ -4,7 +4,7 @@ import { DEFAULT_FACETS } from '../bases';
 export const VIEW_TYPE = 'concept-lattice';
 
 export const MAX_CONCEPTS = { min: 500, max: 20000, step: 500, default: 5000 } as const;
-export const MAX_NODES = { min: 10, max: 150, step: 5, default: 40 } as const;
+export const MAX_NODES = { min: 10, max: 150, step: 5, default: 20 } as const;
 
 export interface ViewConfig {
   facets: string[];

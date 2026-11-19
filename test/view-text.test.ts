@@ -26,7 +26,7 @@ describe('status text', () => {
 
 describe('readViewConfig', () => {
   it('gives the defaults for missing values and clamps numbers', () => {
-    expect(readViewConfig(() => undefined)).toEqual({ facets: [...DEFAULT_FACETS], maxConcepts: 5000, maxNodes: 40 });
+    expect(readViewConfig(() => undefined)).toEqual({ facets: [...DEFAULT_FACETS], maxConcepts: 5000, maxNodes: 20 });
     const values: Record<string, unknown> = { facets: ['task', 'formula.kind'], maxConcepts: 999999, maxNodes: '3' };
     expect(readViewConfig((k) => values[k])).toEqual({ facets: ['task', 'formula.kind'], maxConcepts: 20000, maxNodes: 10 });
   });

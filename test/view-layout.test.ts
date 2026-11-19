@@ -3,7 +3,7 @@ import { buildAtlasData, resolveFacets } from '../src/bases';
 import { StringValue, ListValue } from 'obsidian';
 import { buildModel, contextOf } from '../src/view/model';
 import { initialState } from '../src/view/state';
-import { assignLayers, countCrossings, layoutDiagram, orderLayers, type Edge } from '../src/view/layout';
+import { MIN_FIT_SCALE, assignLayers, countCrossings, fitTransform, layoutDiagram, orderLayers, type Edge } from '../src/view/layout';
 import { entry } from './bases-helpers';
 
 describe('assignLayers', () => {
@@ -74,5 +74,44 @@ describe('layoutDiagram', () => {
     for (let i = 1; i < xs.length; i++) expect(xs[i]! - xs[i - 1]!).toBeGreaterThanOrEqual(168);
     expect(layout.x[0]).toBeCloseTo(layout.width / 2);
     expect(layoutDiagram(0, [])).toMatchObject({ layers: [], width: 0, height: 0 });
+  });
+});
+
+describe('fitTransform', () => {
+  const pad = 24;
+  const finite = (t: { x: number; y: number; k: number }) => [t.x, t.y, t.k].every(Number.isFinite);
+
+  it('centers a graph that fits at scale 0.7 or more, at a scale not larger than 1', () => {
+    const small = fitTransform({ width: 200, height: 100 }, { x: 100, y: 0 }, { width: 800, height: 600 }, pad);
+    expect(small).toEqual({ x: 300, y: 250, k: 1 });
+    const t = fitTransform({ width: 1000, height: 400 }, { x: 500, y: 0 }, { width: 848, height: 600 }, pad);
+    expect(t.k).toBeCloseTo(0.8);
+    expect(t.x).toBeCloseTo((848 - 1000 * 0.8) / 2);
+    expect(t.y).toBeCloseTo((600 - 400 * 0.8) / 2);
+  });
+
+  it('uses scale 0.7 and puts the start node at the top center when the graph does not fit at 0.7', () => {
+    const graph = { width: 3048, height: 400 };
+    const start = { x: 1600, y: 0 };
+    const region = { width: 800, height: 600 };
+    const t = fitTransform(graph, start, region, pad);
+    expect(t.k).toBe(MIN_FIT_SCALE);
+    expect(t.x + start.x * t.k).toBeCloseTo(region.width / 2);
+    expect(t.y + start.y * t.k).toBeCloseTo(pad);
+    // Too high, not too wide.
+    const tall = fitTransform({ width: 200, height: 5000 }, { x: 100, y: 0 }, region, pad);
+    expect(tall.k).toBe(MIN_FIT_SCALE);
+    expect(tall.x + 100 * tall.k).toBeCloseTo(region.width / 2);
+    expect(tall.y).toBeCloseTo(pad);
+  });
+
+  it('gives finite values for an empty region or an empty graph', () => {
+    for (const region of [{ width: 0, height: 600 }, { width: 800, height: 0 }, { width: 0, height: 0 }]) {
+      const t = fitTransform({ width: 1000, height: 400 }, { x: 500, y: 0 }, region, pad);
+      expect(finite(t)).toBe(true);
+      expect(t).toEqual({ x: pad, y: pad, k: 1 });
+    }
+    expect(fitTransform({ width: 0, height: 0 }, { x: 0, y: 0 }, { width: 800, height: 600 }, pad)).toEqual({ x: pad, y: pad, k: 1 });
+    expect(finite(fitTransform({ width: 1000, height: 400 }, { x: 500, y: 0 }, { width: 30, height: 30 }, pad))).toBe(true);
   });
 });

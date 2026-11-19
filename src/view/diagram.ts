@@ -1,6 +1,6 @@
 // SVG diagram of the displayed part of the lattice, with pan and zoom. DOM code; the layout comes from layout.ts.
 import type { Component } from 'obsidian';
-import { DEFAULT_LAYOUT } from './layout';
+import { DEFAULT_LAYOUT, fitTransform } from './layout';
 import type { DisplayModel } from './model';
 
 const PAD = 24;
@@ -37,6 +37,8 @@ export class Diagram {
   private readonly group: SVGGElement;
   private transform: Transform = { x: 0, y: 0, k: 1 };
   private size = { width: 0, height: 0 };
+  /** Top center of the start node (index 0) in graph coordinates. */
+  private start = { x: 0, y: 0 };
   /** The layout key of the last render. A new key fits the diagram. */
   private layoutKey = '';
   /** True after the user pans or zooms; a resize then keeps the transform. */
@@ -62,6 +64,7 @@ export class Diagram {
   render(model: DisplayModel, domFocus: number | null): void {
     const { layout, nodes, covers } = model;
     this.size = { width: layout.width, height: layout.height };
+    this.start = nodes.length > 0 ? { x: layout.x[0]!, y: layout.y[0]! - DEFAULT_LAYOUT.nodeHeight / 2 } : { x: layout.width / 2, y: 0 };
     this.group.replaceChildren();
     const w = DEFAULT_LAYOUT.nodeWidth;
     const h = DEFAULT_LAYOUT.nodeHeight;
@@ -118,18 +121,10 @@ export class Diagram {
     }
   }
 
-  /** Scales and centers the diagram to the viewport. */
+  /** Fits the diagram to the viewport at a scale from 0.7 to 1. A larger diagram shows the start node at the top center. See `fitTransform`. */
   fit(): void {
-    const vw = this.viewport.clientWidth;
-    const vh = this.viewport.clientHeight;
     this.moved = false;
-    if (vw === 0 || vh === 0 || this.size.width === 0) {
-      this.transform = { x: PAD, y: PAD, k: 1 };
-    } else {
-      const k = Math.min(1, (vw - 2 * PAD) / this.size.width, (vh - 2 * PAD) / this.size.height);
-      const scale = Math.max(MIN_SCALE, k);
-      this.transform = { x: (vw - this.size.width * scale) / 2, y: Math.max(PAD, (vh - this.size.height * scale) / 2), k: scale };
-    }
+    this.transform = fitTransform(this.size, this.start, { width: this.viewport.clientWidth, height: this.viewport.clientHeight }, PAD);
     this.apply();
   }
 
