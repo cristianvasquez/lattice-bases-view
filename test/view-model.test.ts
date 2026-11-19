@@ -62,6 +62,7 @@ describe('filter counts', () => {
     expect(m.currentSupport).toBe(0);
     expect(value(m, 'task:overview').disabled).toBe(false);
     expect(value(m, 'task:overview').selected).toBe(true);
+    expect(m.groups.flatMap((g) => g.values).some((v) => v.shared)).toBe(false);
   });
 });
 
@@ -216,6 +217,22 @@ describe('empty states', () => {
     const m = model(initialState(), data);
     expect(m.kind).toBe('no-values');
     expect(m.facets).toEqual(['structure', 'data', 'task']);
+  });
+});
+
+describe('diagram part cache', () => {
+  it('uses the part again for a search or focus change and computes a new part for a filter change', () => {
+    const data = sample();
+    const ctx = contextOf(data);
+    const first = buildModel(data, ctx, initialState(), { maxNodes: 40 });
+    const searched = buildModel(data, ctx, setFocus(setSearch(initialState(), 'dot'), []), { maxNodes: 40, part: first.part });
+    expect(searched.part).toBe(first.part);
+    expect(searched.details!.notes.map((n) => n.name)).toEqual(['Dot']);
+    const filtered = buildModel(data, ctx, toggleValue(initialState(), 'data:network'), { maxNodes: 40, part: first.part });
+    expect(filtered.part).not.toBe(first.part);
+    expect(filtered.currentSupport).toBe(3);
+    const smaller = buildModel(data, ctx, initialState(), { maxNodes: 10, part: first.part });
+    expect(smaller.part).not.toBe(first.part);
   });
 });
 

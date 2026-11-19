@@ -90,6 +90,8 @@ export interface DisplayModel {
   state: ViewState;
   facets: string[];
   totalNotes: number;
+  /** The cacheable part (filter groups, displayed lattice, layout). `null` for an empty state. */
+  part: DiagramPart | null;
   groups: FilterGroup[];
   /** Intent B'' of the current concept (B', B''). */
   currentIntent: string[];
@@ -138,7 +140,8 @@ export function groupByFacet(data: AtlasData, ids: readonly string[]): FacetValu
 /** Filter groups: one per facet, one value per attribute, with the count of matching notes if the value is added to the filter. */
 export function filterGroups(data: AtlasData, ctx: FormalContext, selected: readonly string[], current: Concept): FilterGroup[] {
   const selectedSet = new Set(selected);
-  const intent = new Set(attributeIds(ctx, current.intent));
+  // With support 0, B'' is the set of all attributes. "Shared by all matching notes" would then be true only because no note matches.
+  const intent = new Set(current.support > 0 ? attributeIds(ctx, current.intent) : []);
   return data.facets.map((facet) => ({
     facet: facet.key,
     values: data.attributes
@@ -165,39 +168,35 @@ function emptyLayout(): Layout {
 
 export interface ModelOptions {
   maxNodes: number;
+  /** A part from an earlier call. It is used again when its key is equal; else a new part is computed. */
+  part?: DiagramPart | null;
 }
 
-/** Builds the display model. `ctx` must be `contextOf(data)`. */
-export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState, options: ModelOptions): DisplayModel {
-  const facets = data.facets.map((f) => f.key);
+/** The parts of the model that depend only on the data, the filter and `maxNodes`: not on the focus, the search or the inspector. */
+export interface DiagramPart {
+  key: string;
+  selected: string[];
+  current: Concept;
+  filterActive: boolean;
+  groups: FilterGroup[];
+  nodes: DisplayNode[];
+  covers: Cover[];
+  truncated: boolean;
+  layout: Layout;
+}
+
+/** The cache key of a diagram part. The part is valid only for the data that it was computed from. */
+export function partKey(selected: readonly string[], maxNodes: number): string {
+  return `${maxNodes}\u0001${intentKey(selected)}`;
+}
+
+/** Computes the filter groups, the displayed part of the lattice and its layout. Needs at least one object and one attribute. */
+export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedIds: readonly string[], maxNodes: number): DiagramPart {
   const labelOf = new Map(data.attributes.map((a) => [a.id, valueText(a.facet, a.label)]));
-  const nameOf = new Map(data.objects.map((o) => [o.path, o.name]));
-  const inspection = inspect(data, state.selectedNote);
-
-  if (data.objects.length === 0 || data.attributes.length === 0) {
-    return {
-      kind: data.objects.length === 0 ? 'no-entries' : 'no-values',
-      state: { ...state, selected: [], focus: null },
-      facets,
-      totalNotes: data.objects.length,
-      groups: [],
-      currentIntent: [],
-      currentSupport: data.objects.length,
-      filterActive: false,
-      nodes: [],
-      covers: [],
-      truncated: false,
-      layout: emptyLayout(),
-      focusIndex: null,
-      details: null,
-      inspection,
-    };
-  }
-
-  const selected = state.selected.filter((id) => ctx.attributeIndex.has(id));
+  const selected = selectedIds.filter((id) => ctx.attributeIndex.has(id));
   const current = conceptOfAttributes(ctx, attributeSet(ctx, selected));
   const filterActive = selected.length > 0;
-  const explored = exploreBySupport(ctx, current, Math.max(1, Math.floor(options.maxNodes)));
+  const explored = exploreBySupport(ctx, current, Math.max(1, Math.floor(maxNodes)));
 
   const intents = explored.concepts.map((c) => attributeIds(ctx, c.intent));
   const uppers: number[][] = explored.concepts.map(() => []);
@@ -222,6 +221,53 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
     const ariaLabel = `${zero ? `${ZERO_SUPPORT_TEXT}. ` : ''}${notesText(concept.support)}. ${ariaValues}.`;
     return { index, concept, intent, support: concept.support, reduced, label, sublabel, ariaLabel, isStart, zero };
   });
+
+  return {
+    key: partKey(selected, maxNodes),
+    selected,
+    current,
+    filterActive,
+    groups: filterGroups(data, ctx, selected, current),
+    nodes,
+    covers: explored.covers,
+    truncated: explored.truncated,
+    layout: layoutDiagram(nodes.length, explored.covers, 0),
+  };
+}
+
+/** Builds the display model. `ctx` must be `contextOf(data)`. */
+export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState, options: ModelOptions): DisplayModel {
+  const facets = data.facets.map((f) => f.key);
+  const nameOf = new Map(data.objects.map((o) => [o.path, o.name]));
+  const inspection = inspect(data, state.selectedNote);
+
+  if (data.objects.length === 0 || data.attributes.length === 0) {
+    return {
+      kind: data.objects.length === 0 ? 'no-entries' : 'no-values',
+      state: { ...state, selected: [], focus: null },
+      facets,
+      totalNotes: data.objects.length,
+      part: null,
+      groups: [],
+      currentIntent: [],
+      currentSupport: data.objects.length,
+      filterActive: false,
+      nodes: [],
+      covers: [],
+      truncated: false,
+      layout: emptyLayout(),
+      focusIndex: null,
+      details: null,
+      inspection,
+    };
+  }
+
+  const cached = options.part;
+  const part =
+    cached && cached.key === partKey(state.selected.filter((id) => ctx.attributeIndex.has(id)), options.maxNodes)
+      ? cached
+      : buildDiagramPart(data, ctx, state.selected, options.maxNodes);
+  const { selected, nodes } = part;
 
   let focusIndex: number | null = null;
   if (state.focus !== null) {
@@ -249,14 +295,15 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
     state: { ...state, selected, focus: focusIndex === null ? null : nodes[focusIndex]!.intent },
     facets,
     totalNotes: data.objects.length,
-    groups: filterGroups(data, ctx, selected, current),
-    currentIntent: intents[0]!,
-    currentSupport: current.support,
-    filterActive,
+    part,
+    groups: part.groups,
+    currentIntent: nodes[0]!.intent,
+    currentSupport: part.current.support,
+    filterActive: part.filterActive,
     nodes,
-    covers: explored.covers,
-    truncated: explored.truncated,
-    layout: layoutDiagram(nodes.length, explored.covers, 0),
+    covers: part.covers,
+    truncated: part.truncated,
+    layout: part.layout,
     focusIndex,
     details,
     inspection,

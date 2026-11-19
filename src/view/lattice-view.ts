@@ -125,6 +125,7 @@ export class ConceptLatticeView extends BasesView {
       const resolved = resolveFacets(config.facets, this.allProperties ?? []);
       const data = buildAtlasData(this.data.data, resolved.facets);
       const ctx = contextOf(data);
+      this.model = null;
       this.loaded = { data, ctx, warnings: [...resolved.warnings, ...data.warnings], maxNodes: config.maxNodes };
       this.state = reconcileState(this.state, data);
       this.error = null;
@@ -198,11 +199,12 @@ export class ConceptLatticeView extends BasesView {
 
   private render(domFocus: number | null): void {
     if (this.searchInput.value !== this.state.search) this.searchInput.value = this.state.search;
+    const previousPart = this.model?.part ?? null;
     this.model = null;
     let message = this.error === null ? null : errorText(this.error);
     if (message === null && this.loaded) {
       try {
-        const model = buildModel(this.loaded.data, this.loaded.ctx, this.state, { maxNodes: this.loaded.maxNodes });
+        const model = buildModel(this.loaded.data, this.loaded.ctx, this.state, { maxNodes: this.loaded.maxNodes, part: previousPart });
         this.state = model.state;
         this.model = model;
         if (model.kind === 'no-entries') message = noEntriesText();
@@ -212,16 +214,20 @@ export class ConceptLatticeView extends BasesView {
       }
     }
 
-    const ok = this.model?.kind === 'ok';
+    const model = this.model;
+    const ok = model?.kind === 'ok';
+    // The filters and the diagram depend only on the part. A search, focus or inspector change keeps them and their DOM.
+    const partChanged = model?.part == null || model.part !== previousPart;
     this.messageEl.toggleClass('is-hidden', message === null);
     this.messageEl.setText(message ?? '');
     this.toolbarEl.toggleClass('is-hidden', !ok);
     this.diagram.viewport.toggleClass('is-hidden', !ok);
-    this.renderFilters();
+    if (partChanged) keepFocus(this.groupsEl, ['data-attribute'], () => this.renderFilters());
     this.renderStatus();
     this.renderWarnings();
-    if (ok) this.diagram.render(this.model!, domFocus);
-    this.renderDetails();
+    if (ok && partChanged) this.diagram.render(model, domFocus);
+    else if (ok) this.diagram.setFocus(model.focusIndex, domFocus);
+    keepFocus(this.detailsEl, ['data-inspect', 'data-path', 'data-action'], () => this.renderDetails());
   }
 
   private renderStatus(): void {
@@ -319,4 +325,16 @@ export class ConceptLatticeView extends BasesView {
     const inspect = item.createEl('button', { cls: 'concept-atlas-inspect', text: 'Inspect', attr: { 'data-inspect': note.path, 'aria-label': `Inspect ${note.name}` } });
     inspect.toggleClass('is-active', this.state.selectedNote === note.path);
   }
+}
+
+/** Runs `render` and gives the keyboard focus back to the new element with the same value of one of `attrs`. */
+function keepFocus(container: HTMLElement, attrs: string[], render: () => void): void {
+  const active = document.activeElement;
+  let selector: string | null = null;
+  if (active instanceof HTMLElement && container.contains(active)) {
+    const attr = attrs.find((a) => active.hasAttribute(a));
+    if (attr) selector = `[${attr}="${CSS.escape(active.getAttribute(attr)!)}"]`;
+  }
+  render();
+  if (selector) container.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
 }

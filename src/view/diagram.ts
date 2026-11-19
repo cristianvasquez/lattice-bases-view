@@ -108,6 +108,16 @@ export class Diagram {
     (focusEl as SVGGElement | null)?.focus({ preventScroll: true });
   }
 
+  /** Marks the focused node without a new render. `domFocus` is the node that gets the keyboard focus, or null. */
+  setFocus(focusIndex: number | null, domFocus: number | null): void {
+    for (const el of Array.from(this.group.querySelectorAll<SVGGElement>('[data-index]'))) {
+      const index = Number(el.getAttribute('data-index'));
+      el.classList.toggle('is-focused', index === focusIndex);
+      el.setAttribute('aria-pressed', index === focusIndex ? 'true' : 'false');
+      if (index === domFocus) el.focus({ preventScroll: true });
+    }
+  }
+
   /** Scales and centers the diagram to the viewport. */
   fit(): void {
     const vw = this.viewport.clientWidth;
