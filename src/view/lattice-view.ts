@@ -25,6 +25,7 @@ import {
   NO_FILTER_MATCH_TEXT,
   type FullLatticeState,
   errorText,
+  filterToText,
   focusCountText,
   fullLatticeText,
   noEntriesText,
@@ -535,8 +536,16 @@ export class ConceptLatticeView extends BasesView {
     if (!notes) return;
 
     if (notes.focus) {
-      this.notesFocusEl.createSpan({ text: focusCountText(notes.focus.support) });
-      if (notes.focus.canFilterTo) this.notesFocusEl.createEl('button', { cls: 'concept-atlas-filter-to', text: 'Filter to this concept', attr: { 'data-action': 'filter-to' } });
+      // One short line: a link when the filter can change to the focused concept, else a plain text.
+      if (notes.focus.canFilterTo) {
+        this.notesFocusEl.createEl('button', {
+          cls: 'concept-atlas-filter-to',
+          text: filterToText(notes.focus.support),
+          attr: { 'data-action': 'filter-to', 'aria-label': `${focusCountText(notes.focus.support)}. Set the filter to this concept.` },
+        });
+      } else {
+        this.notesFocusEl.createSpan({ text: focusCountText(notes.focus.support) });
+      }
     }
     for (const note of notes.items) {
       const item = this.notesListEl.createEl('li', { cls: 'concept-atlas-note', attr: { 'data-note': note.path } });

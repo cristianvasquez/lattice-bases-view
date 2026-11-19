@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_FACETS } from '../src/bases';
 import { readViewConfig } from '../src/view/config';
-import { EXPLANATION, HIGHLIGHT_HINT, NO_FILTER_MATCH_TEXT, focusCountText, fullLatticeText, noValuesText, notesCountText, shorten, shownText } from '../src/view/text';
+import { EXPLANATION, HIGHLIGHT_HINT, NO_FILTER_MATCH_TEXT, filterToText, focusCountText, fullLatticeText, noValuesText, notesCountText, shorten, shownText } from '../src/view/text';
 
 describe('status text', () => {
   it('separates the full lattice from the displayed part', () => {
@@ -9,7 +9,7 @@ describe('status text', () => {
     expect(fullLatticeText({ kind: 'complete', count: 12 })).toBe('Full lattice: 12 concepts');
     expect(fullLatticeText({ kind: 'budget', count: 5000 })).toBe('Full lattice: more than 5000 concepts (budget reached)');
     expect(shownText(7, false)).toBe('Shown: 7 concepts below the current filter');
-    expect(shownText(40, true)).toContain("the 40 concepts with the most notes; select a concept and use 'Filter to this concept' to see below it");
+    expect(shownText(40, true)).toContain("the 40 concepts with the most notes; double-click a concept to see below it");
   });
 
   it('names the configured facets in the no-values text and never says "does not have"', () => {
@@ -40,6 +40,8 @@ describe('notes column text', () => {
   it('gives the line of the focused concept', () => {
     expect(focusCountText(3)).toBe('3 of these are in the focused concept');
     expect(focusCountText(1)).toBe('1 of these is in the focused concept');
+    expect(filterToText(4)).toBe('Filter to these 4');
+    expect(filterToText(1)).toBe('Filter to this 1');
   });
 
   it('does not say that a note does not have a value', () => {

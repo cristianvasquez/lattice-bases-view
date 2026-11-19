@@ -32,6 +32,11 @@ export function focusCountText(count: number): string {
   return `${count} of these ${count === 1 ? 'is' : 'are'} in the focused concept`;
 }
 
+/** Text of the link that sets the filter to the focused concept. */
+export function filterToText(count: number): string {
+  return `Filter to ${count === 1 ? 'this 1' : `these ${count}`}`;
+}
+
 export const NO_FILTER_MATCH_TEXT = 'No note has all of the selected values. Remove a value from the filter.';
 
 /** Shortens a text to `max` characters with an ellipsis at the end. */
@@ -67,7 +72,7 @@ export function fullLatticeText(state: FullLatticeState): string {
 export function shownText(count: number, truncated: boolean): string {
   const base = `Shown: ${plural(count, 'concept')} below the current filter`;
   if (!truncated) return base;
-  return `${base}: the ${plural(count, 'concept')} with the most notes; select a concept and use 'Filter to this concept' to see below it`;
+  return `${base}: the ${plural(count, 'concept')} with the most notes; double-click a concept to see below it`;
 }
 
 export function noEntriesText(): string {

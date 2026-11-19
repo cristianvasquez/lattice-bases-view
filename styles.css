@@ -361,6 +361,22 @@
   color: var(--text-muted);
 }
 
+.concept-atlas .concept-atlas-notes-focus .concept-atlas-filter-to {
+  height: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--link-color);
+  font-size: inherit;
+  cursor: var(--cursor-link);
+}
+
+.concept-atlas .concept-atlas-notes-focus .concept-atlas-filter-to:hover {
+  color: var(--link-color-hover);
+  text-decoration: underline;
+}
+
 .concept-atlas .concept-atlas-notes-focus:empty {
   display: none;
 }
