@@ -1,0 +1,23 @@
+{
+  "name": "concept-atlas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Obsidian plugin: a Concept lattice layout for Bases (Formal Concept Analysis over note properties).",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "pnpm typecheck && pnpm test && pnpm build",
+    "install:vault": "node scripts/install-to-vault.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "obsidian": "^1.14.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

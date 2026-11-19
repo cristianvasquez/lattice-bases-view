@@ -1,0 +1,9 @@
+{
+  "id": "concept-atlas",
+  "name": "Concept Atlas",
+  "version": "0.1.0",
+  "minAppVersion": "1.10.0",
+  "description": "Adds a Concept lattice layout to Bases: explore notes by the property values they share (Formal Concept Analysis).",
+  "author": "Cristian Vasquez",
+  "isDesktopOnly": false
+}
