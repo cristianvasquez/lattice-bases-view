@@ -103,7 +103,8 @@ export interface DisplayModel {
   nodes: DisplayNode[];
   covers: Cover[];
   truncated: boolean;
-  layout: Layout;
+  /** Computed on the first read (from the part). */
+  readonly layout: Layout;
   focusIndex: number | null;
   notes: NotesColumn | null;
 }
@@ -172,7 +173,8 @@ export interface DiagramPart {
   nodes: DisplayNode[];
   covers: Cover[];
   truncated: boolean;
-  layout: Layout;
+  /** Computed on the first read. */
+  readonly layout: Layout;
 }
 
 /** The cache key of a diagram part. The part is valid only for the data that it was computed from. */
@@ -216,6 +218,8 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
     return { index, concept, intent, support: concept.support, reduced, label, sublabel, ariaLabel, isStart, zero, compact };
   });
 
+  // The layout is computed on the first read, so that a view with the lattice hidden does not compute it.
+  let layout: Layout | null = null;
   return {
     key: partKey(selected, maxNodes),
     selected,
@@ -225,7 +229,9 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
     nodes,
     covers: explored.covers,
     truncated: explored.truncated,
-    layout: layoutDiagram(nodes.length, explored.covers, 0),
+    get layout(): Layout {
+      return (layout ??= layoutDiagram(nodes.length, explored.covers, 0));
+    },
   };
 }
 
@@ -303,7 +309,9 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
     nodes,
     covers: part.covers,
     truncated: part.truncated,
-    layout: part.layout,
+    get layout(): Layout {
+      return part.layout;
+    },
     focusIndex,
     notes,
   };

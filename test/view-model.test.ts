@@ -287,6 +287,14 @@ describe('focus', () => {
     if (row.length > 1) expect(neighbourFor(m, row[0]!, 'right')).toBe(row[1]);
   });
 
+  it('computes the layout on the first read and keeps it in the part', () => {
+    const m = model(initialState());
+    const layout = m.layout;
+    expect(m.layout).toBe(layout);
+    expect(m.part!.layout).toBe(layout);
+    expect(layout.layer.length).toBe(m.nodes.length);
+  });
+
   it('clears the filter, the search and the focus', () => {
     const state = setFocus(setSearch(toggleValue(initialState(), 'data:network'), 'x'), []);
     expect(clearFilters(state)).toEqual({ selected: [], focus: null, search: '', previous: [] });

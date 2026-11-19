@@ -6,6 +6,7 @@ import { COLUMN_WIDTHS_KEY, type ColumnWidths, type Side, columnRange, defaultWi
 import { VIEW_TYPE, readViewConfig } from './config';
 import { Diagram } from './diagram';
 import { type DisplayModel, buildModel, contextOf, neighbourFor, nodeNotePaths } from './model';
+import { PANELS, PANELS_KEY, type Panel, type PanelLayout, type PanelVisibility, panelLayout, readStoredPanels, togglePanel } from './panels';
 import {
   type ViewState,
   backFilter,
@@ -34,6 +35,8 @@ import {
 } from './text';
 
 const NARROW_WIDTH = 700;
+
+const PANEL_NAMES: Record<Panel, string> = { filters: 'Filters', lattice: 'Lattice', notes: 'Notes' };
 
 /** Counter for element ids that are unique per view instance. */
 let viewCount = 0;
@@ -80,6 +83,15 @@ export class ConceptLatticeView extends BasesView {
   private readonly handles: Record<Side, HTMLDivElement>;
   /** The widths that the user set (stored per vault). The view uses `fitWidths` of them for the current width. */
   private widths: ColumnWidths;
+  /** The visible panels (stored per vault). */
+  private panels: PanelVisibility;
+  private readonly panelEls: Record<Panel, HTMLElement>;
+  private readonly toggles: Record<Panel, HTMLButtonElement>;
+  /** The scroll containers of each panel. Their scroll positions are kept while the panel is hidden. */
+  private readonly scrollEls: Record<Panel, HTMLElement[]>;
+  private readonly scrollTops = new Map<HTMLElement, number>();
+  /** True when the model changed while the lattice was hidden: the diagram must be drawn again when it shows. */
+  private diagramStale = false;
 
   private state: ViewState = initialState();
   private loaded: Loaded | null = null;
@@ -91,10 +103,22 @@ export class ConceptLatticeView extends BasesView {
   constructor(controller: QueryController, containerEl: HTMLElement) {
     super(controller);
     this.root = containerEl.createDiv({ cls: 'concept-atlas' });
-    const main = this.root.createDiv({ cls: 'concept-atlas-main' });
-    this.mainEl = main;
     const idPrefix = `concept-atlas-view-${++viewCount}`;
     this.widths = readStoredWidths(this.app.loadLocalStorage(COLUMN_WIDTHS_KEY), remSize(this.root));
+    this.panels = readStoredPanels(this.app.loadLocalStorage(PANELS_KEY));
+
+    const panelBar = this.root.createDiv({ cls: 'concept-atlas-panel-bar', attr: { role: 'group', 'aria-labelledby': `${idPrefix}-panels` } });
+    panelBar.createSpan({ cls: 'concept-atlas-visually-hidden', text: 'Panels', attr: { id: `${idPrefix}-panels` } });
+    const toggles = {} as Record<Panel, HTMLButtonElement>;
+    for (const panel of PANELS) {
+      const button = panelBar.createEl('button', { cls: 'concept-atlas-panel-toggle', text: PANEL_NAMES[panel], attr: { 'data-panel': panel } });
+      this.registerDomEvent(button, 'click', () => this.setPanels(togglePanel(this.panels, panel)));
+      toggles[panel] = button;
+    }
+    this.toggles = toggles;
+
+    const main = this.root.createDiv({ cls: 'concept-atlas-main' });
+    this.mainEl = main;
 
     const filters = createRegion(main, 'concept-atlas-filters', `${idPrefix}-filters`, 'Filters');
     const clear = filters.createEl('button', { cls: 'concept-atlas-clear', text: 'Clear filters' });
@@ -132,7 +156,11 @@ export class ConceptLatticeView extends BasesView {
     this.notesCountEl = this.notesEl.createDiv({ cls: 'concept-atlas-notes-count', attr: { 'aria-live': 'polite' } });
     this.notesFocusEl = this.notesEl.createDiv({ cls: 'concept-atlas-notes-focus' });
     this.notesMessageEl = this.notesEl.createDiv({ cls: 'concept-atlas-muted' });
-    this.notesListEl = this.notesEl.createEl('ul', { cls: 'concept-atlas-notes' });
+    // The list is in a scroll container, so that a list with several columns (wide notes column) grows down and scrolls vertically.
+    const notesScroll = this.notesEl.createDiv({ cls: 'concept-atlas-notes-scroll' });
+    this.notesListEl = notesScroll.createEl('ul', { cls: 'concept-atlas-notes' });
+    this.panelEls = { filters, lattice: center, notes: this.notesEl };
+    this.scrollEls = { filters: [filters], lattice: [], notes: [notesScroll] };
 
     const footer = this.root.createEl('details', { cls: 'concept-atlas-footer' });
     footer.createEl('summary', { text: 'What the lattice shows' });
@@ -154,10 +182,13 @@ export class ConceptLatticeView extends BasesView {
       this.root.toggleClass('is-narrow', width > 0 && width < NARROW_WIDTH);
       this.applyWidths();
     });
+    this.applyPanels();
     observer.observe(this.root);
     this.register(() => observer.disconnect());
     // Fits the diagram when the viewport gets a new size: a resize of the window or the pane, or the narrow mode. A change of the filter, the focus, the hover or the search does not change the size of the viewport: the notes column is always in the DOM and has a fixed width.
-    const viewportObserver = new ResizeObserver(() => this.diagram.resized());
+    const viewportObserver = new ResizeObserver(() => {
+      if (this.panels.lattice) this.diagram.resized();
+    });
     viewportObserver.observe(this.diagram.viewport);
     this.register(() => viewportObserver.disconnect());
     this.register(() => this.cancelLattice());
@@ -275,20 +306,67 @@ export class ConceptLatticeView extends BasesView {
     this.registerDomEvent(handle, 'keydown', (ev) => {
       if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
       ev.preventDefault();
-      const next = stepColumn(side, ev.key === 'ArrowLeft' ? 'left' : 'right', this.effectiveWidths(), this.mainEl.clientWidth, remSize(this.root));
+      const next = stepColumn(side, ev.key === 'ArrowLeft' ? 'left' : 'right', this.effectiveWidths(), this.mainEl.clientWidth, remSize(this.root), this.panelLayout().frame);
       this.setWidth(side, next[side], true);
     });
     return handle;
   }
 
+  private panelLayout(): PanelLayout {
+    return panelLayout(this.panels);
+  }
+
+  /** Hides or shows panels, stores the flags and fits the diagram when the lattice shows again. */
+  private setPanels(next: PanelVisibility): void {
+    if (PANELS.every((p) => next[p] === this.panels[p])) return;
+    const latticeShown = next.lattice && !this.panels.lattice;
+    for (const panel of PANELS) {
+      if (this.panels[panel] && !next[panel]) for (const el of this.scrollEls[panel]) this.scrollTops.set(el, el.scrollTop);
+    }
+    this.panels = next;
+    this.app.saveLocalStorage(PANELS_KEY, next);
+    this.applyPanels();
+    for (const panel of PANELS) {
+      if (!next[panel]) continue;
+      for (const el of this.scrollEls[panel]) {
+        const top = this.scrollTops.get(el);
+        if (top !== undefined) el.scrollTop = top;
+        this.scrollTops.delete(el);
+      }
+    }
+    if (latticeShown) {
+      const model = this.model;
+      if (model?.kind === 'ok') {
+        if (this.diagramStale) this.diagram.render(model, null);
+        else this.diagram.setFocus(model.focusIndex, null);
+      }
+      this.diagramStale = false;
+      this.diagram.fit();
+    }
+  }
+
+  /** Shows the visible panels and the handles between them, and sets the states of the toggles. A hidden panel is `display: none`: it keeps its DOM and its state. */
+  private applyPanels(): void {
+    const layout = this.panelLayout();
+    for (const panel of PANELS) {
+      this.panelEls[panel].toggleClass('is-hidden', !layout.visible[panel]);
+      const toggle = this.toggles[panel];
+      toggle.setAttr('aria-pressed', layout.visible[panel] ? 'true' : 'false');
+      toggle.toggleClass('is-active', layout.visible[panel]);
+      toggle.disabled = layout.disabled[panel];
+    }
+    for (const side of ['filters', 'notes'] as const) this.handles[side].toggleClass('is-hidden', !layout.handles[side]);
+    this.applyWidths();
+  }
+
   /** The widths for the current width of the view. */
   private effectiveWidths(): ColumnWidths {
-    return fitWidths(this.widths, this.mainEl.clientWidth, remSize(this.root));
+    return fitWidths(this.widths, this.mainEl.clientWidth, remSize(this.root), this.panelLayout().frame);
   }
 
   /** Sets the width of one side column, clamped to its range, and stores the widths when `save` is true. */
   private setWidth(side: Side, value: number, save: boolean): void {
-    const next = setColumn(side, value, this.effectiveWidths(), this.mainEl.clientWidth, remSize(this.root));
+    const next = setColumn(side, value, this.effectiveWidths(), this.mainEl.clientWidth, remSize(this.root), this.panelLayout().frame);
     this.widths = { ...this.widths, [side]: next[side] };
     this.applyWidths();
     if (save) this.saveWidths();
@@ -298,18 +376,24 @@ export class ConceptLatticeView extends BasesView {
     this.app.saveLocalStorage(COLUMN_WIDTHS_KEY, this.widths);
   }
 
-  /** Sets the column widths and the values of the handles. The CSS uses the widths only in the wide layout. */
+  /** Sets the grid tracks of the panels, the column widths and the values of the handles. The CSS uses the tracks only in the wide layout. A hidden panel has a track with no width; the flexible panel takes the remaining width. */
   private applyWidths(): void {
+    const layout = this.panelLayout();
     const total = this.mainEl.clientWidth;
-    if (total <= 0) return;
     const rem = remSize(this.root);
-    const widths = fitWidths(this.widths, total, rem);
+    const widths = total > 0 ? fitWidths(this.widths, total, rem, layout.frame) : this.widths;
+    const track = (panel: Panel, width: number): string => {
+      if (!layout.visible[panel]) return '0px';
+      return panel === layout.flexible ? 'minmax(0, 1fr)' : `${width}px`;
+    };
     this.mainEl.setCssProps({
-      '--concept-atlas-filters-width': `${widths.filters}px`,
-      '--concept-atlas-notes-width': `${widths.notes}px`,
+      '--concept-atlas-filters-track': track('filters', widths.filters),
+      '--concept-atlas-lattice-track': track('lattice', 0),
+      '--concept-atlas-notes-track': track('notes', widths.notes),
     });
+    if (total <= 0) return;
     for (const side of ['filters', 'notes'] as const) {
-      const { min, max } = columnRange(side, widths, total, rem);
+      const { min, max } = columnRange(side, widths, total, rem, layout.frame);
       this.handles[side].setAttrs({ 'aria-valuenow': widths[side], 'aria-valuemin': min, 'aria-valuemax': max });
     }
   }
@@ -357,7 +441,9 @@ export class ConceptLatticeView extends BasesView {
     this.renderWarnings();
     // Before the diagram: the diagram calls markNotes() on the new list elements.
     keepFocus(this.notesEl, ['data-path', 'data-action'], () => this.renderNotes());
-    if (ok && partChanged) this.diagram.render(model, domFocus);
+    // While the lattice is hidden, the diagram is not drawn (and the layout is not computed). It is drawn when the lattice shows again.
+    if (!this.panels.lattice) this.diagramStale = this.diagramStale || (ok && partChanged);
+    else if (ok && partChanged) this.diagram.render(model, domFocus);
     else if (ok) this.diagram.setFocus(model.focusIndex, domFocus);
   }
 

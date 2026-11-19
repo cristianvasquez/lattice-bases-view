@@ -15,6 +15,11 @@
   display: none;
 }
 
+/* A hidden panel. The selector is more specific than the display rules of the regions. */
+.concept-atlas .concept-atlas-region.is-hidden {
+  display: none;
+}
+
 /* In the DOM for assistive technology, not visible. */
 .concept-atlas .concept-atlas-visually-hidden {
   position: absolute;
@@ -30,11 +35,51 @@
 
 .concept-atlas .concept-atlas-main {
   display: grid;
-  /* Filters, handle, center, handle, notes. The side columns have the widths that the handles set (the view sets the variables and keeps at least 16rem for the center). The handle tracks have no width. The row has the height of the view, so that the content of the columns does not change the size of the diagram viewport. */
-  grid-template-columns: var(--concept-atlas-filters-width, 15rem) 0 minmax(0, 1fr) 0 var(--concept-atlas-notes-width, 17rem);
+  /* Filters, handle, center, handle, notes. The view sets the tracks: a hidden panel has no width, the flexible panel takes the remaining width, a side column has the width that its handle sets. The handle tracks have no width. Each item has a fixed track, so that a hidden item does not move the others. The row has the height of the view, so that the content of the columns does not change the size of the diagram viewport. */
+  grid-template-columns: var(--concept-atlas-filters-track, 15rem) 0 var(--concept-atlas-lattice-track, minmax(0, 1fr)) 0 var(--concept-atlas-notes-track, 17rem);
   grid-template-rows: minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.concept-atlas .concept-atlas-filters {
+  grid-column: 1;
+}
+
+.concept-atlas .concept-atlas-handle-filters {
+  grid-column: 2;
+}
+
+.concept-atlas .concept-atlas-center {
+  grid-column: 3;
+}
+
+.concept-atlas .concept-atlas-handle-notes {
+  grid-column: 4;
+}
+
+.concept-atlas .concept-atlas-notes-column {
+  grid-column: 5;
+}
+
+/* Toggles that hide or show the panels: one row above the columns, at the right. */
+.concept-atlas .concept-atlas-panel-bar {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: var(--size-4-1);
+  padding: var(--size-4-1) var(--size-4-3);
+  border-bottom: var(--border-width) solid var(--background-modifier-border);
+}
+
+.concept-atlas .concept-atlas-panel-toggle {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.concept-atlas .concept-atlas-panel-toggle.is-active {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-active-hover);
 }
 
 .concept-atlas .concept-atlas-region {
@@ -63,6 +108,8 @@
   flex-direction: column;
   gap: var(--size-4-1);
   overflow: hidden;
+  /* For the container query of the note list. */
+  container-type: inline-size;
   border-left: var(--border-width) solid var(--background-modifier-border);
 }
 
@@ -118,7 +165,7 @@
 }
 
 /* Narrow: the page scrolls, not the list. */
-.concept-atlas.is-narrow .concept-atlas-notes {
+.concept-atlas.is-narrow .concept-atlas-notes-scroll {
   flex: 0 0 auto;
   overflow: visible;
 }
@@ -312,13 +359,28 @@
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-notes {
+.concept-atlas .concept-atlas-notes-scroll {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
+}
+
+.concept-atlas .concept-atlas-notes {
   margin: 0;
   padding-left: 0;
-  overflow: auto;
   list-style: none;
+}
+
+/* A wide notes column shows the list in several columns, in the same order (down, then to the next column). */
+@container (min-width: 30rem) {
+  .concept-atlas .concept-atlas-notes {
+    columns: 16rem;
+    column-gap: var(--size-4-4);
+  }
+
+  .concept-atlas .concept-atlas-note {
+    break-inside: avoid;
+  }
 }
 
 .concept-atlas .concept-atlas-note {
