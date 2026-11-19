@@ -1,9 +1,9 @@
 ---
-repo-uri: osg://repo/local:06642ecd189313f8e47c74dc22023513c63e8c39
+repo-uri: osg://repo/local:e40fba4f6138f7c9d1d8a606113f33922eef7403
 tags: [repo/pkm]
 layout: node.js
 ---
-# [lattice-bases-view](osg://repo/local:06642ecd189313f8e47c74dc22023513c63e8c39)
+# [lattice-bases-view](osg://repo/local:e40fba4f6138f7c9d1d8a606113f33922eef7403)
 
 Lattice Bases View is an Obsidian plugin. It adds the layout "Concept lattice" to Obsidian Bases.
 
