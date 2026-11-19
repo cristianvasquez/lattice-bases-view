@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildAtlasData, resolveFacets, type AtlasData } from '../src/bases';
 import { buildModel, contextOf, matchesSearch, neighbourFor, nodeNotePaths, nodesAbove, type DisplayModel } from '../src/view/model';
 import type { Cover } from '../src/fca';
-import { clearFilters, filterToConcept, initialState, reconcileState, setFocus, setSearch, toggleValue, type ViewState } from '../src/view/state';
+import { backFilter, clearFilters, filterToConcept, initialState, reconcileState, setFocus, setSearch, toggleValue, type ViewState } from '../src/view/state';
 import { entry } from './bases-helpers';
 
 const s = (text: string) => new StringValue(text);
@@ -289,7 +289,46 @@ describe('focus', () => {
 
   it('clears the filter, the search and the focus', () => {
     const state = setFocus(setSearch(toggleValue(initialState(), 'data:network'), 'x'), []);
-    expect(clearFilters(state)).toEqual({ selected: [], focus: null, search: '' });
+    expect(clearFilters(state)).toEqual({ selected: [], focus: null, search: '', previous: [] });
+  });
+});
+
+describe('stack of previous filters', () => {
+  it('pushes the previous filter when it filters to a concept, and back restores it', () => {
+    const start = toggleValue(initialState(), 'data:network');
+    const down = filterToConcept(setFocus(start, ['data:network', 'structure:graph']), ['data:network', 'structure:graph']);
+    expect(down).toMatchObject({ selected: ['data:network', 'structure:graph'], focus: null, previous: [['data:network']] });
+    const back = backFilter(setFocus(down, ['data:network', 'structure:graph']));
+    expect(back).toMatchObject({ selected: ['data:network'], focus: null, previous: [] });
+  });
+
+  it('goes back two levels one by one', () => {
+    const one = filterToConcept(initialState(), ['data:network']);
+    const two = filterToConcept(one, ['data:network', 'structure:graph']);
+    expect(two.previous).toEqual([[], ['data:network']]);
+    const back1 = backFilter(two);
+    expect(back1).toMatchObject({ selected: ['data:network'], previous: [[]] });
+    const back2 = backFilter(back1);
+    expect(back2).toMatchObject({ selected: [], previous: [] });
+  });
+
+  it('empties the stack on a checkbox change and on "Clear filters"', () => {
+    const down = filterToConcept(filterToConcept(initialState(), ['data:network']), ['data:network', 'structure:graph']);
+    expect(toggleValue(down, 'task:relationship').previous).toEqual([]);
+    expect(toggleValue(down, 'structure:graph').previous).toEqual([]);
+    expect(clearFilters(down).previous).toEqual([]);
+  });
+
+  it('changes nothing on back with an empty stack', () => {
+    const state = setFocus(toggleValue(initialState(), 'data:network'), ['data:network']);
+    expect(backFilter(state)).toBe(state);
+  });
+
+  it('keeps the stack through the model and drops ids that no longer exist', () => {
+    const down = filterToConcept(initialState(), ['data:network']);
+    expect(model(down).state.previous).toEqual([[]]);
+    const stale: ViewState = { ...initialState(), previous: [['data:gone', 'data:network']] };
+    expect(reconcileState(stale, sample()).previous).toEqual([['data:network']]);
   });
 });
 
@@ -299,6 +338,7 @@ describe('data updates', () => {
       selected: ['data:network', 'structure:graph'],
       focus: ['structure:graph', 'data:network'],
       search: 'dot',
+      previous: [],
     };
     expect(reconcileState(state, sample())).toEqual({ ...state, selected: ['structure:graph', 'data:network'] });
 
@@ -309,7 +349,7 @@ describe('data updates', () => {
       ],
       facets,
     );
-    expect(reconcileState(state, changed)).toEqual({ selected: ['data:network'], focus: null, search: 'dot' });
+    expect(reconcileState(state, changed)).toEqual({ selected: ['data:network'], focus: null, search: 'dot', previous: [] });
   });
 });
 

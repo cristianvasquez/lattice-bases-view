@@ -23,6 +23,8 @@ function nodeHeight(node: DisplayNode | undefined): number {
 export interface DiagramHandlers {
   /** Click, Enter or Space on a node. */
   activate(index: number): void;
+  /** Double-click or Shift+Enter on a node: filter to the concept, or back to the previous filter on the start node. */
+  toggleFilter(index: number): void;
   /** Arrow keys and Escape on a node. */
   key(index: number, key: 'up' | 'down' | 'left' | 'right' | 'escape'): void;
   /** Click on the diagram background (not after a drag). */
@@ -87,6 +89,7 @@ export class Diagram {
     component.registerDomEvent(this.viewport, 'pointercancel', (ev) => this.onPointerUp(ev));
     component.registerDomEvent(this.viewport, 'wheel', (ev) => this.onWheel(ev), { passive: false });
     component.registerDomEvent(this.viewport, 'click', (ev) => this.onClick(ev));
+    component.registerDomEvent(this.viewport, 'dblclick', (ev) => this.onDoubleClick(ev));
     component.registerDomEvent(this.viewport, 'keydown', (ev) => this.onKeyDown(ev));
     component.registerDomEvent(this.viewport, 'pointerover', (ev) => this.setHovered(this.nodeIndex(ev.target)));
     component.registerDomEvent(this.viewport, 'pointerleave', () => this.setHovered(null));
@@ -281,6 +284,14 @@ export class Diagram {
     else this.handlers.background();
   }
 
+  /** The two clicks before the double-click focus the node; the double-click then replaces the filter and removes that focus. */
+  private onDoubleClick(ev: MouseEvent): void {
+    const index = this.nodeIndex(ev.target);
+    if (index === null) return;
+    ev.preventDefault();
+    this.handlers.toggleFilter(index);
+  }
+
   private onKeyDown(ev: KeyboardEvent): void {
     const index = this.nodeIndex(ev.target);
     if (index === null) return;
@@ -293,6 +304,11 @@ export class Diagram {
     };
     // Escape removes the focused concept. The node keeps the keyboard focus, but it is not marked until the focus moves.
     if (ev.key === 'Escape') this.keyboard = null;
+    if (ev.key === 'Enter' && ev.shiftKey) {
+      ev.preventDefault();
+      this.handlers.toggleFilter(index);
+      return;
+    }
     if (ev.key === 'Enter' || ev.key === ' ') {
       ev.preventDefault();
       this.handlers.activate(index);

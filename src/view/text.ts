@@ -3,8 +3,8 @@
 export const EXPLANATION =
   "The lattice shows recorded property values only. A missing value means 'not annotated', not 'false'. Values that all matching notes share are a fact about these records, not a rule about the domain.";
 
-/** The line below the diagram toolbar. It gives the reading rule of the reduced labels. */
-export const HIGHLIGHT_HINT = 'Point at a concept: the marked concepts above it give its values.';
+/** The line below the diagram toolbar. It gives the reading rule of the reduced labels and the double-click. */
+export const HIGHLIGHT_HINT = 'Point at a concept to see its values above it. Double-click to filter to it; double-click the top concept to go back.';
 
 export const ZERO_SUPPORT_TEXT = 'No note has all of these values';
 

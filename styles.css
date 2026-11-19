@@ -30,8 +30,8 @@
 
 .concept-atlas .concept-atlas-main {
   display: grid;
-  /* Filters, center, notes. The notes column has a fixed width and the row has the height of the view, so that the content of the columns does not change the size of the diagram viewport. */
-  grid-template-columns: minmax(11rem, 1fr) minmax(0, 4fr) 17rem;
+  /* Filters, handle, center, handle, notes. The side columns have the widths that the handles set (the view sets the variables and keeps at least 16rem for the center). The handle tracks have no width. The row has the height of the view, so that the content of the columns does not change the size of the diagram viewport. */
+  grid-template-columns: var(--concept-atlas-filters-width, 15rem) 0 minmax(0, 1fr) 0 var(--concept-atlas-notes-width, 17rem);
   grid-template-rows: minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
@@ -66,7 +66,38 @@
   border-left: var(--border-width) solid var(--background-modifier-border);
 }
 
-/* Stacked layout below 700 px of width (class set by a ResizeObserver). */
+/* Drag handle between two columns. It is in a track with no width and covers 4 px at each side of the border. */
+.concept-atlas .concept-atlas-handle {
+  position: relative;
+  z-index: 1;
+  width: 8px;
+  margin: 0 -4px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.concept-atlas .concept-atlas-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background-color: transparent;
+}
+
+.concept-atlas .concept-atlas-handle:hover::after,
+.concept-atlas .concept-atlas-handle:focus-visible::after,
+.concept-atlas .concept-atlas-handle.is-dragging::after {
+  background-color: var(--interactive-accent);
+}
+
+/* Stacked layout below 700 px of width (class set by a ResizeObserver). The handles are hidden and the widths have no effect. */
+.concept-atlas.is-narrow .concept-atlas-handle {
+  display: none;
+}
+
 .concept-atlas.is-narrow .concept-atlas-main {
   display: flex;
   flex-direction: column;

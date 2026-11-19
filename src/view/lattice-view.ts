@@ -2,11 +2,13 @@
 import { BasesView, Keymap, type QueryController } from 'obsidian';
 import { type AtlasData, buildAtlasData, resolveFacets } from '../bases';
 import { type FormalContext, buildLattice } from '../fca';
+import { COLUMN_WIDTHS_KEY, type ColumnWidths, type Side, columnRange, defaultWidth, fitWidths, readStoredWidths, setColumn, stepColumn } from './columns';
 import { VIEW_TYPE, readViewConfig } from './config';
 import { Diagram } from './diagram';
 import { type DisplayModel, buildModel, contextOf, neighbourFor, nodeNotePaths } from './model';
 import {
   type ViewState,
+  backFilter,
   clearFilters,
   filterToConcept,
   initialState,
@@ -43,6 +45,11 @@ function createRegion(parent: HTMLElement, cls: string, id: string, name: string
   return region;
 }
 
+/** The size of 1rem in pixels. */
+function remSize(el: HTMLElement): number {
+  return parseFloat(getComputedStyle(el.ownerDocument.documentElement).fontSize) || 16;
+}
+
 interface Loaded {
   data: AtlasData;
   ctx: FormalContext;
@@ -68,6 +75,11 @@ export class ConceptLatticeView extends BasesView {
   private readonly notesFocusEl: HTMLDivElement;
   private readonly notesMessageEl: HTMLDivElement;
   private readonly notesListEl: HTMLUListElement;
+  private readonly mainEl: HTMLDivElement;
+  /** The drag handles at the right of the filters column and at the left of the notes column. */
+  private readonly handles: Record<Side, HTMLDivElement>;
+  /** The widths that the user set (stored per vault). The view uses `fitWidths` of them for the current width. */
+  private widths: ColumnWidths;
 
   private state: ViewState = initialState();
   private loaded: Loaded | null = null;
@@ -80,11 +92,14 @@ export class ConceptLatticeView extends BasesView {
     super(controller);
     this.root = containerEl.createDiv({ cls: 'concept-atlas' });
     const main = this.root.createDiv({ cls: 'concept-atlas-main' });
+    this.mainEl = main;
     const idPrefix = `concept-atlas-view-${++viewCount}`;
+    this.widths = readStoredWidths(this.app.loadLocalStorage(COLUMN_WIDTHS_KEY), remSize(this.root));
 
     const filters = createRegion(main, 'concept-atlas-filters', `${idPrefix}-filters`, 'Filters');
     const clear = filters.createEl('button', { cls: 'concept-atlas-clear', text: 'Clear filters' });
     this.groupsEl = filters.createDiv({ cls: 'concept-atlas-groups' });
+    const filtersHandle = this.createHandle(main, 'filters', `${idPrefix}-filters-handle`, 'Width of the filters column');
 
     const center = createRegion(main, 'concept-atlas-center', `${idPrefix}-diagram`, 'Concept diagram');
     this.statusEl = center.createDiv({ cls: 'concept-atlas-status', attr: { 'aria-live': 'polite' } });
@@ -97,6 +112,7 @@ export class ConceptLatticeView extends BasesView {
     this.messageEl = center.createDiv({ cls: 'concept-atlas-message' });
     this.diagram = new Diagram(center, this, `${idPrefix}-diagram`, {
       activate: (index) => this.focusNode(index),
+      toggleFilter: (index) => this.toggleFilter(index),
       key: (index, key) => this.onNodeKey(index, key),
       background: () => {
         if (this.state.focus !== null) this.update(setFocus(this.state, null));
@@ -104,6 +120,8 @@ export class ConceptLatticeView extends BasesView {
       marked: (index) => this.markNotes(index),
     });
 
+    const notesHandle = this.createHandle(main, 'notes', `${idPrefix}-notes-handle`, 'Width of the notes column');
+    this.handles = { filters: filtersHandle, notes: notesHandle };
     this.notesEl = createRegion(main, 'concept-atlas-notes-column', `${idPrefix}-notes`, 'Notes');
     this.searchInput = this.notesEl.createEl('input', {
       cls: 'concept-atlas-search',
@@ -134,6 +152,7 @@ export class ConceptLatticeView extends BasesView {
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? this.root.clientWidth;
       this.root.toggleClass('is-narrow', width > 0 && width < NARROW_WIDTH);
+      this.applyWidths();
     });
     observer.observe(this.root);
     this.register(() => observer.disconnect());
@@ -213,6 +232,86 @@ export class ConceptLatticeView extends BasesView {
     }
     const next = neighbourFor(this.model, index, key);
     if (next !== null) this.focusNode(next);
+  }
+
+  /** Double-click or Shift+Enter on a node. On a node that is not the start node: filter to its concept. On the start node: back to the previous filter, if there is one. The start node of the new diagram gets the keyboard focus. */
+  private toggleFilter(index: number): void {
+    const node = this.model?.nodes[index];
+    if (!node) return;
+    if (!node.isStart) this.update(filterToConcept(this.state, node.intent), 0);
+    else if (this.state.previous.length > 0) this.update(backFilter(this.state), 0);
+  }
+
+  /** Adds a drag handle that changes the width of a side column. It is a focusable separator: ArrowLeft and ArrowRight change the width; a double-click restores the default width. */
+  private createHandle(parent: HTMLElement, side: Side, id: string, name: string): HTMLDivElement {
+    const handle = parent.createDiv({
+      cls: `concept-atlas-handle concept-atlas-handle-${side}`,
+      attr: { role: 'separator', 'aria-orientation': 'vertical', tabindex: '0', 'aria-labelledby': id },
+    });
+    handle.createSpan({ cls: 'concept-atlas-visually-hidden', text: name, attr: { id } });
+    let drag: { id: number; x: number; width: number } | null = null;
+    this.registerDomEvent(handle, 'pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      handle.setPointerCapture(ev.pointerId);
+      handle.addClass('is-dragging');
+      drag = { id: ev.pointerId, x: ev.clientX, width: this.effectiveWidths()[side] };
+    });
+    this.registerDomEvent(handle, 'pointermove', (ev) => {
+      if (!drag || drag.id !== ev.pointerId) return;
+      const dx = ev.clientX - drag.x;
+      this.setWidth(side, drag.width + (side === 'filters' ? dx : -dx), false);
+    });
+    const end = (ev: PointerEvent) => {
+      if (!drag || drag.id !== ev.pointerId) return;
+      drag = null;
+      if (handle.hasPointerCapture(ev.pointerId)) handle.releasePointerCapture(ev.pointerId);
+      handle.removeClass('is-dragging');
+      this.saveWidths();
+    };
+    this.registerDomEvent(handle, 'pointerup', end);
+    this.registerDomEvent(handle, 'pointercancel', end);
+    this.registerDomEvent(handle, 'dblclick', () => this.setWidth(side, defaultWidth(side, remSize(this.root)), true));
+    this.registerDomEvent(handle, 'keydown', (ev) => {
+      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+      ev.preventDefault();
+      const next = stepColumn(side, ev.key === 'ArrowLeft' ? 'left' : 'right', this.effectiveWidths(), this.mainEl.clientWidth, remSize(this.root));
+      this.setWidth(side, next[side], true);
+    });
+    return handle;
+  }
+
+  /** The widths for the current width of the view. */
+  private effectiveWidths(): ColumnWidths {
+    return fitWidths(this.widths, this.mainEl.clientWidth, remSize(this.root));
+  }
+
+  /** Sets the width of one side column, clamped to its range, and stores the widths when `save` is true. */
+  private setWidth(side: Side, value: number, save: boolean): void {
+    const next = setColumn(side, value, this.effectiveWidths(), this.mainEl.clientWidth, remSize(this.root));
+    this.widths = { ...this.widths, [side]: next[side] };
+    this.applyWidths();
+    if (save) this.saveWidths();
+  }
+
+  private saveWidths(): void {
+    this.app.saveLocalStorage(COLUMN_WIDTHS_KEY, this.widths);
+  }
+
+  /** Sets the column widths and the values of the handles. The CSS uses the widths only in the wide layout. */
+  private applyWidths(): void {
+    const total = this.mainEl.clientWidth;
+    if (total <= 0) return;
+    const rem = remSize(this.root);
+    const widths = fitWidths(this.widths, total, rem);
+    this.mainEl.setCssProps({
+      '--concept-atlas-filters-width': `${widths.filters}px`,
+      '--concept-atlas-notes-width': `${widths.notes}px`,
+    });
+    for (const side of ['filters', 'notes'] as const) {
+      const { min, max } = columnRange(side, widths, total, rem);
+      this.handles[side].setAttrs({ 'aria-valuenow': widths[side], 'aria-valuemin': min, 'aria-valuemax': max });
+    }
   }
 
   private onNotesClick(ev: MouseEvent): void {
