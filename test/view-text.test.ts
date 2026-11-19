@@ -19,7 +19,7 @@ describe('status text', () => {
   });
 
   it('gives the reading rule of the highlight', () => {
-    expect(HIGHLIGHT_HINT).toBe('Point at a concept to see its values above it. Double-click to filter to it; double-click the top concept to go back.');
+    expect(HIGHLIGHT_HINT).toBe('Point at a concept to see its values above it. Double-click to filter to it; use Back to return.');
   });
 
   it('shortens long labels with an ellipsis', () => {

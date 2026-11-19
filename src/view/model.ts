@@ -11,7 +11,7 @@ import {
   exploreBySupport,
   objectIds,
 } from '../fca';
-import { type Layout, layoutDiagram } from './layout';
+import { DEFAULT_LAYOUT, type Layout, layoutDiagram, maxNodesPerLayer, nodeWidthFor } from './layout';
 import type { ViewState } from './state';
 import { ZERO_SUPPORT_TEXT, countText, notesText, shorten, valueText } from './text';
 
@@ -103,7 +103,11 @@ export interface DisplayModel {
   nodes: DisplayNode[];
   covers: Cover[];
   truncated: boolean;
-  /** Computed on the first read (from the part). */
+  /** Width of the nodes that are not compact, from the labels of the displayed part. */
+  nodeWidth: number;
+  /** The largest number of nodes per layer, from the viewport width (Infinity: no limit). */
+  maxPerLayer: number;
+  /** Computed on the first read (from the part, for `maxPerLayer`). */
   readonly layout: Layout;
   focusIndex: number | null;
   notes: NotesColumn | null;
@@ -154,13 +158,15 @@ export function filterGroups(data: AtlasData, ctx: FormalContext, selected: read
 }
 
 function emptyLayout(): Layout {
-  return { layer: [], layers: [], x: [], y: [], width: 0, height: 0 };
+  return { nodeWidth: DEFAULT_LAYOUT.nodeWidth, maxPerLayer: Infinity, layer: [], layers: [], x: [], y: [], width: 0, height: 0 };
 }
 
 export interface ModelOptions {
   maxNodes: number;
   /** A part from an earlier call. It is used again when its key is equal; else a new part is computed. */
   part?: DiagramPart | null;
+  /** Width of the diagram viewport in px. It sets the largest number of nodes per layer. Missing or 0: no limit. */
+  viewportWidth?: number;
 }
 
 /** The parts of the model that depend only on the data, the filter and `maxNodes`: not on the focus or the search. */
@@ -173,8 +179,10 @@ export interface DiagramPart {
   nodes: DisplayNode[];
   covers: Cover[];
   truncated: boolean;
-  /** Computed on the first read. */
-  readonly layout: Layout;
+  /** Width of the nodes that are not compact: the estimated width of their longest label (see `nodeWidthFor`). */
+  nodeWidth: number;
+  /** The layout for at most `maxPerLayer` nodes per layer. Computed on the first call for each value and kept. */
+  layoutFor(maxPerLayer: number): Layout;
 }
 
 /** The cache key of a diagram part. The part is valid only for the data that it was computed from. */
@@ -218,8 +226,11 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
     return { index, concept, intent, support: concept.support, reduced, label, sublabel, ariaLabel, isStart, zero, compact };
   });
 
+  const nodeWidth = nodeWidthFor(nodes.filter((n) => !n.compact).flatMap((n) => (n.sublabel === '' ? [n.label] : [n.label, n.sublabel])));
+  const options = { ...DEFAULT_LAYOUT, nodeWidth };
+  const support = nodes.map((n) => n.support);
   // The layout is computed on the first read, so that a view with the lattice hidden does not compute it.
-  let layout: Layout | null = null;
+  const layouts = new Map<number, Layout>();
   return {
     key: partKey(selected, maxNodes),
     selected,
@@ -229,8 +240,14 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
     nodes,
     covers: explored.covers,
     truncated: explored.truncated,
-    get layout(): Layout {
-      return (layout ??= layoutDiagram(nodes.length, explored.covers, 0));
+    nodeWidth,
+    layoutFor(maxPerLayer: number): Layout {
+      let layout = layouts.get(maxPerLayer);
+      if (!layout) {
+        layout = layoutDiagram(nodes.length, explored.covers, 0, options, maxPerLayer, support);
+        layouts.set(maxPerLayer, layout);
+      }
+      return layout;
     },
   };
 }
@@ -253,6 +270,8 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
       nodes: [],
       covers: [],
       truncated: false,
+      nodeWidth: DEFAULT_LAYOUT.nodeWidth,
+      maxPerLayer: Infinity,
       layout: emptyLayout(),
       focusIndex: null,
       notes: null,
@@ -265,6 +284,7 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
       ? cached
       : buildDiagramPart(data, ctx, state.selected, options.maxNodes);
   const { selected, nodes } = part;
+  const maxPerLayer = maxNodesPerLayer(options.viewportWidth ?? 0, part.nodeWidth);
 
   let focusIndex: number | null = null;
   if (state.focus !== null) {
@@ -309,8 +329,10 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
     nodes,
     covers: part.covers,
     truncated: part.truncated,
+    nodeWidth: part.nodeWidth,
+    maxPerLayer,
     get layout(): Layout {
-      return part.layout;
+      return part.layoutFor(maxPerLayer);
     },
     focusIndex,
     notes,

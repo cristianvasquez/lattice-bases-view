@@ -1,10 +1,9 @@
 // SVG diagram of the displayed part of the lattice, with pan and zoom. DOM code; the layout comes from layout.ts.
 import type { Component } from 'obsidian';
-import { DEFAULT_LAYOUT, fitTransform } from './layout';
+import { DEFAULT_LAYOUT, DIAGRAM_PAD, fitTransform } from './layout';
 import { type DisplayModel, type DisplayNode, nodesAbove } from './model';
 import type { Cover } from '../fca';
 
-const PAD = 24;
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 4;
@@ -111,7 +110,7 @@ export class Diagram {
     this.size = { width: layout.width, height: layout.height };
     this.start = nodes.length > 0 ? { x: layout.x[0]!, y: layout.y[0]! - nodeHeight(nodes[0]) / 2 } : { x: layout.width / 2, y: 0 };
     this.group.replaceChildren();
-    const w = DEFAULT_LAYOUT.nodeWidth;
+    const w = layout.nodeWidth;
     const half = (node: DisplayNode | undefined) => nodeHeight(node) / 2;
 
     const edges = svgEl('g', this.group, {}, 'concept-atlas-edges');
@@ -129,7 +128,8 @@ export class Diagram {
       if (node.compact) classes.push('is-compact');
       if (model.focusIndex === node.index) classes.push('is-focused');
       const nodeTitleId = `${this.idPrefix}-node-${node.index}-title`;
-      const nw = node.compact ? COMPACT_WIDTH : w;
+      // A compact node keeps its own small width; its center is on the column grid of the layout.
+      const nw = node.compact ? Math.min(COMPACT_WIDTH, w) : w;
       const nh = nodeHeight(node);
       const g = svgEl(
         'g',
@@ -200,10 +200,10 @@ export class Diagram {
     this.handlers.marked(valid ? target : null);
   }
 
-  /** Fits the diagram to the viewport at a scale from 0.7 to 1. A larger diagram shows the start node at the top center. See `fitTransform`. */
+  /** Fits the width of the diagram to the viewport at a scale from 0.7 to 1, with the top of the diagram at the top of the viewport. See `fitTransform`. */
   fit(): void {
     this.moved = false;
-    this.transform = fitTransform(this.size, this.start, { width: this.viewport.clientWidth, height: this.viewport.clientHeight }, PAD);
+    this.transform = fitTransform(this.size, this.start, { width: this.viewport.clientWidth, height: this.viewport.clientHeight }, DIAGRAM_PAD);
     this.apply();
   }
 
@@ -268,10 +268,21 @@ export class Diagram {
     this.drag = null;
   }
 
+  /** The wheel with no modifier key scrolls the diagram (vertical, and horizontal with Shift or a trackpad). Ctrl+wheel (and a pinch, which Chromium sends as Ctrl+wheel) zooms. */
   private onWheel(ev: WheelEvent): void {
     ev.preventDefault();
-    const rect = this.viewport.getBoundingClientRect();
-    this.zoomBy(Math.exp(-ev.deltaY * 0.0015), ev.clientX - rect.left, ev.clientY - rect.top);
+    // deltaMode 1 is lines, 2 is pages.
+    const unit = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? this.viewport.clientHeight : 1;
+    if (ev.ctrlKey || ev.metaKey) {
+      const rect = this.viewport.getBoundingClientRect();
+      this.zoomBy(Math.exp(-ev.deltaY * unit * 0.0015), ev.clientX - rect.left, ev.clientY - rect.top);
+      return;
+    }
+    const dx = ev.shiftKey && ev.deltaX === 0 ? ev.deltaY : ev.deltaX;
+    const dy = ev.shiftKey && ev.deltaX === 0 ? 0 : ev.deltaY;
+    this.transform = { ...this.transform, x: this.transform.x - dx * unit, y: this.transform.y - dy * unit };
+    this.moved = true;
+    this.apply();
   }
 
   private onClick(ev: MouseEvent): void {

@@ -1,10 +1,11 @@
 // The Bases view "Concept lattice". DOM code. The logic is in the pure modules state.ts, model.ts, layout.ts and text.ts.
-import { BasesView, Keymap, type QueryController } from 'obsidian';
+import { BasesView, Keymap, type QueryController, setIcon } from 'obsidian';
 import { type AtlasData, buildAtlasData, resolveFacets } from '../bases';
 import { type FormalContext, buildLattice } from '../fca';
 import { COLUMN_WIDTHS_KEY, type ColumnWidths, type Side, columnRange, defaultWidth, fitWidths, readStoredWidths, setColumn, stepColumn } from './columns';
 import { VIEW_TYPE, readViewConfig } from './config';
 import { Diagram } from './diagram';
+import { maxNodesPerLayer } from './layout';
 import { type DisplayModel, buildModel, contextOf, neighbourFor, nodeNotePaths } from './model';
 import { PANELS, PANELS_KEY, type Panel, type PanelLayout, type PanelVisibility, panelLayout, readStoredPanels, togglePanel } from './panels';
 import {
@@ -69,6 +70,8 @@ export class ConceptLatticeView extends BasesView {
   private readonly statusEl: HTMLDivElement;
   private readonly warningsEl: HTMLDivElement;
   private readonly toolbarEl: HTMLDivElement;
+  /** The toolbar button "Back": back to the previous filter. Disabled when the stack of previous filters is empty. */
+  private readonly backButton: HTMLButtonElement;
   private readonly hintEl: HTMLDivElement;
   private readonly messageEl: HTMLDivElement;
   private readonly diagram: Diagram;
@@ -129,8 +132,12 @@ export class ConceptLatticeView extends BasesView {
     this.statusEl = center.createDiv({ cls: 'concept-atlas-status', attr: { 'aria-live': 'polite' } });
     this.warningsEl = center.createDiv({ cls: 'concept-atlas-warnings' });
     this.toolbarEl = center.createDiv({ cls: 'concept-atlas-toolbar' });
-    const zoomIn = this.toolbarEl.createEl('button', { text: '+', attr: { 'aria-label': 'Zoom in' } });
-    const zoomOut = this.toolbarEl.createEl('button', { text: '−', attr: { 'aria-label': 'Zoom out' } });
+    this.backButton = this.toolbarEl.createEl('button', { cls: 'concept-atlas-back', attr: { 'aria-label': 'Back to the previous filter' } });
+    setIcon(this.backButton.createSpan({ cls: 'concept-atlas-back-icon' }), 'arrow-left');
+    this.backButton.createSpan({ text: 'Back' });
+    this.backButton.disabled = true;
+    const zoomIn = this.toolbarEl.createEl('button', { text: '+', attr: { 'aria-label': 'Zoom in (Ctrl+scroll)' } });
+    const zoomOut = this.toolbarEl.createEl('button', { text: '−', attr: { 'aria-label': 'Zoom out (Ctrl+scroll)' } });
     const fit = this.toolbarEl.createEl('button', { text: 'Fit', attr: { 'aria-label': 'Fit the diagram to the view' } });
     this.hintEl = center.createDiv({ cls: 'concept-atlas-hint', text: HIGHLIGHT_HINT });
     this.messageEl = center.createDiv({ cls: 'concept-atlas-message' });
@@ -172,6 +179,7 @@ export class ConceptLatticeView extends BasesView {
       const target = ev.target;
       if (target instanceof HTMLInputElement && target.dataset.attribute) this.update(toggleValue(this.state, target.dataset.attribute));
     });
+    this.registerDomEvent(this.backButton, 'click', () => this.back());
     this.registerDomEvent(zoomIn, 'click', () => this.diagram.zoomBy(1.25));
     this.registerDomEvent(zoomOut, 'click', () => this.diagram.zoomBy(0.8));
     this.registerDomEvent(fit, 'click', () => this.diagram.fit());
@@ -186,8 +194,11 @@ export class ConceptLatticeView extends BasesView {
     observer.observe(this.root);
     this.register(() => observer.disconnect());
     // Fits the diagram when the viewport gets a new size: a resize of the window or the pane, or the narrow mode. A change of the filter, the focus, the hover or the search does not change the size of the viewport: the notes column is always in the DOM and has a fixed width.
+    // When the new width gives a new number of nodes per layer, the layout is computed again and the diagram is drawn again (and fitted).
     const viewportObserver = new ResizeObserver(() => {
-      if (this.panels.lattice) this.diagram.resized();
+      if (!this.panels.lattice) return;
+      if (this.relayout() && this.model?.kind === 'ok') this.diagram.render(this.model, null);
+      else this.diagram.resized();
     });
     viewportObserver.observe(this.diagram.viewport);
     this.register(() => viewportObserver.disconnect());
@@ -270,7 +281,27 @@ export class ConceptLatticeView extends BasesView {
     const node = this.model?.nodes[index];
     if (!node) return;
     if (!node.isStart) this.update(filterToConcept(this.state, node.intent), 0);
-    else if (this.state.previous.length > 0) this.update(backFilter(this.state), 0);
+    else this.back();
+  }
+
+  /** The button "Back", or a double-click or Shift+Enter on the start node: back to the previous filter, if there is one. The start node of the new diagram gets the keyboard focus. */
+  private back(): void {
+    if (this.state.previous.length > 0) this.update(backFilter(this.state), 0);
+  }
+
+  /** The viewport width for the layout: 0 (no limit) while the lattice is hidden. */
+  private viewportWidth(): number {
+    return this.panels.lattice ? this.diagram.viewport.clientWidth : 0;
+  }
+
+  /** Builds the model again when the viewport width gives a new number of nodes per layer. The part is used again. Returns true when the layout changed. */
+  private relayout(): boolean {
+    const model = this.model;
+    if (!this.loaded || model?.kind !== 'ok') return false;
+    const viewportWidth = this.viewportWidth();
+    if (maxNodesPerLayer(viewportWidth, model.nodeWidth) === model.maxPerLayer) return false;
+    this.model = buildModel(this.loaded.data, this.loaded.ctx, this.state, { maxNodes: this.loaded.maxNodes, part: model.part, viewportWidth });
+    return true;
   }
 
   /** Adds a drag handle that changes the width of a side column. It is a focusable separator: ArrowLeft and ArrowRight change the width; a double-click restores the default width. */
@@ -335,9 +366,10 @@ export class ConceptLatticeView extends BasesView {
       }
     }
     if (latticeShown) {
+      const relaid = this.relayout();
       const model = this.model;
       if (model?.kind === 'ok') {
-        if (this.diagramStale) this.diagram.render(model, null);
+        if (this.diagramStale || relaid) this.diagram.render(model, null);
         else this.diagram.setFocus(model.focusIndex, null);
       }
       this.diagramStale = false;
@@ -413,11 +445,16 @@ export class ConceptLatticeView extends BasesView {
   private render(domFocus: number | null): void {
     if (this.searchInput.value !== this.state.search) this.searchInput.value = this.state.search;
     const previousPart = this.model?.part ?? null;
+    const previousMaxPerLayer = this.model?.maxPerLayer ?? null;
     this.model = null;
     let message = this.error === null ? null : errorText(this.error);
     if (message === null && this.loaded) {
       try {
-        const model = buildModel(this.loaded.data, this.loaded.ctx, this.state, { maxNodes: this.loaded.maxNodes, part: previousPart });
+        const model = buildModel(this.loaded.data, this.loaded.ctx, this.state, {
+          maxNodes: this.loaded.maxNodes,
+          part: previousPart,
+          viewportWidth: this.viewportWidth(),
+        });
         this.state = model.state;
         this.model = model;
         if (model.kind === 'no-entries') message = noEntriesText();
@@ -431,6 +468,9 @@ export class ConceptLatticeView extends BasesView {
     const ok = model?.kind === 'ok';
     // The filters and the diagram depend only on the part. A search or focus change keeps them and their DOM.
     const partChanged = model?.part == null || model.part !== previousPart;
+    // A new number of nodes per layer gives a new layout of the same part.
+    const layoutChanged = partChanged || model?.maxPerLayer !== previousMaxPerLayer;
+    this.backButton.disabled = this.state.previous.length === 0;
     this.messageEl.toggleClass('is-hidden', message === null);
     this.messageEl.setText(message ?? '');
     this.toolbarEl.toggleClass('is-hidden', !ok);
@@ -443,7 +483,7 @@ export class ConceptLatticeView extends BasesView {
     keepFocus(this.notesEl, ['data-path', 'data-action'], () => this.renderNotes());
     // While the lattice is hidden, the diagram is not drawn (and the layout is not computed). It is drawn when the lattice shows again.
     if (!this.panels.lattice) this.diagramStale = this.diagramStale || (ok && partChanged);
-    else if (ok && partChanged) this.diagram.render(model, domFocus);
+    else if (ok && layoutChanged) this.diagram.render(model, domFocus);
     else if (ok) this.diagram.setFocus(model.focusIndex, domFocus);
   }
 

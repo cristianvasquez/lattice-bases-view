@@ -287,12 +287,28 @@ describe('focus', () => {
     if (row.length > 1) expect(neighbourFor(m, row[0]!, 'right')).toBe(row[1]);
   });
 
-  it('computes the layout on the first read and keeps it in the part', () => {
+  it('computes the layout on the first read and keeps it in the part for each number of nodes per layer', () => {
     const m = model(initialState());
     const layout = m.layout;
+    expect(m.maxPerLayer).toBe(Infinity);
     expect(m.layout).toBe(layout);
-    expect(m.part!.layout).toBe(layout);
+    expect(m.part!.layoutFor(Infinity)).toBe(layout);
     expect(layout.layer.length).toBe(m.nodes.length);
+    expect(m.part!.layoutFor(2)).not.toBe(layout);
+    expect(m.part!.layoutFor(2)).toBe(m.part!.layoutFor(2));
+  });
+
+  it('limits the nodes per layer by the viewport width and gives a node width from the labels', () => {
+    const data = sample();
+    const wide = buildModel(data, contextOf(data), initialState(), { maxNodes: 40 });
+    const narrow = buildModel(data, contextOf(data), initialState(), { maxNodes: 40, part: wide.part, viewportWidth: 200 });
+    expect(narrow.part).toBe(wide.part);
+    expect(narrow.nodeWidth).toBeGreaterThanOrEqual(72);
+    expect(narrow.nodeWidth).toBeLessThanOrEqual(168);
+    expect(narrow.maxPerLayer).toBe(Math.max(1, Math.floor((200 - 48 + 24) / (narrow.nodeWidth + 24))));
+    expect(narrow.layout.width).toBeLessThanOrEqual(Math.max(narrow.nodeWidth, 200 - 48));
+    expect(Math.max(...narrow.layout.layers.map((row) => row.length))).toBeLessThanOrEqual(narrow.maxPerLayer);
+    for (const [u, l] of narrow.covers) expect(narrow.layout.layer[l]!).toBeGreaterThan(narrow.layout.layer[u]!);
   });
 
   it('clears the filter, the search and the focus', () => {

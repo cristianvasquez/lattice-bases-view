@@ -16,7 +16,39 @@ export interface LayoutOptions {
 
 export const DEFAULT_LAYOUT: LayoutOptions = { nodeWidth: 168, nodeHeight: 48, gapX: 24, gapY: 64, passes: 4 };
 
+/** Padding between the graph and the border of the diagram viewport, at scale 1. */
+export const DIAGRAM_PAD = 24;
+/** The smallest node width. The largest is `DEFAULT_LAYOUT.nodeWidth`. */
+export const MIN_NODE_WIDTH = 72;
+/** Estimated width of one character of a node label (interface font, small size). The pure code does not measure the DOM. */
+export const LABEL_CHAR_WIDTH = 7;
+/** Horizontal space in a node around its label: both sides together. */
+export const LABEL_PADDING = 16;
+
+/**
+ * The node width for the given labels: the estimated width of the longest label, from MIN_NODE_WIDTH to `max`.
+ * The estimate is the number of characters times LABEL_CHAR_WIDTH plus LABEL_PADDING.
+ */
+export function nodeWidthFor(labels: readonly string[], max = DEFAULT_LAYOUT.nodeWidth): number {
+  const longest = labels.reduce((m, label) => Math.max(m, label.length), 0);
+  return Math.min(max, Math.max(MIN_NODE_WIDTH, Math.ceil(longest * LABEL_CHAR_WIDTH + LABEL_PADDING)));
+}
+
+/**
+ * The largest number of nodes per layer, so that a layer fits the viewport width at scale 1:
+ * `max(1, floor((viewportWidth - 2 * pad + gapX) / (nodeWidth + gapX)))`.
+ * A width that is not finite or not larger than 0 (a viewport with no size) gives Infinity: no limit.
+ */
+export function maxNodesPerLayer(viewportWidth: number, nodeWidth: number, gapX = DEFAULT_LAYOUT.gapX, pad = DIAGRAM_PAD): number {
+  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return Infinity;
+  return Math.max(1, Math.floor((viewportWidth - 2 * pad + gapX) / (nodeWidth + gapX)));
+}
+
 export interface Layout {
+  /** Width of a node that is not compact. All nodes use a column grid with this width. */
+  nodeWidth: number;
+  /** The largest number of nodes per layer that was used (Infinity: no limit). */
+  maxPerLayer: number;
   /** Layer of each node. 0 is the top layer. */
   layer: number[];
   /** Node indexes per layer, left to right. */
@@ -54,6 +86,36 @@ export function assignLayers(count: number, edges: readonly Edge[], start = 0): 
   }
   if (done < count) throw new Error('The cover edges have a cycle');
   if (count > 0 && layer[start] !== 0) throw new Error(`The start node ${start} has an upper neighbour`);
+  return layer;
+}
+
+/**
+ * Layer of each node with at most `maxPerLayer` nodes per layer (W >= 1). For each edge the lower node is in a layer below the upper node.
+ * The nodes are processed in topological order: the layer of `assignLayers` first, then the larger `priority` (for example the support),
+ * then the lower index. Each node goes to the first layer that is below all its upper neighbours and has fewer than W nodes.
+ * `start` is processed first. When all other nodes have an upper neighbour (as in a lattice), `start` is alone in layer 0.
+ * With W = Infinity the result is equal to `assignLayers`. Long edges that pass over layers are permitted.
+ */
+export function assignLayersBounded(count: number, edges: readonly Edge[], start = 0, maxPerLayer = Infinity, priority?: readonly number[]): number[] {
+  const longest = assignLayers(count, edges, start);
+  if (!(maxPerLayer >= 1)) throw new RangeError(`The maximum number of nodes per layer must be 1 or more, not ${maxPerLayer}`);
+  const uppers: number[][] = Array.from({ length: count }, () => []);
+  for (const [u, l] of edges) uppers[l]!.push(u);
+  const order = Array.from({ length: count }, (_, i) => i).sort(
+    (a, b) =>
+      Number(b === start) - Number(a === start) ||
+      longest[a]! - longest[b]! ||
+      (priority?.[b] ?? 0) - (priority?.[a] ?? 0) ||
+      a - b,
+  );
+  const layer = new Array<number>(count).fill(0);
+  const size: number[] = [];
+  for (const node of order) {
+    let k = uppers[node]!.reduce((m, u) => Math.max(m, layer[u]! + 1), 0);
+    while ((size[k] ?? 0) >= maxPerLayer) k++;
+    layer[node] = k;
+    size[k] = (size[k] ?? 0) + 1;
+  }
   return layer;
 }
 
@@ -125,9 +187,19 @@ export function orderLayers(layer: readonly number[], edges: readonly Edge[], pa
   return best;
 }
 
-/** Computes the layers, the order in each layer and the node centers. Layer 0 is at the top. Each layer is centered. */
-export function layoutDiagram(count: number, edges: readonly Edge[], start = 0, options: LayoutOptions = DEFAULT_LAYOUT): Layout {
-  const layer = assignLayers(count, edges, start);
+/**
+ * Computes the layers, the order in each layer and the node centers. Layer 0 is at the top. Each layer is centered.
+ * `maxPerLayer` limits the number of nodes per layer (see `assignLayersBounded`); `priority` is its tie rule.
+ */
+export function layoutDiagram(
+  count: number,
+  edges: readonly Edge[],
+  start = 0,
+  options: LayoutOptions = DEFAULT_LAYOUT,
+  maxPerLayer = Infinity,
+  priority?: readonly number[],
+): Layout {
+  const layer = assignLayersBounded(count, edges, start, maxPerLayer, priority);
   const layers = orderLayers(layer, edges, options.passes);
   const widest = layers.reduce((m, row) => Math.max(m, row.length), 0);
   const width = widest * options.nodeWidth + Math.max(0, widest - 1) * options.gapX;
@@ -142,7 +214,7 @@ export function layoutDiagram(count: number, edges: readonly Edge[], start = 0, 
       y[node] = k * (options.nodeHeight + options.gapY) + options.nodeHeight / 2;
     });
   });
-  return { layer, layers, x, y, width, height };
+  return { nodeWidth: options.nodeWidth, maxPerLayer, layer, layers, x, y, width, height };
 }
 
 /** The smallest scale of the initial view and of "Fit". Below it the node labels are not readable. */
@@ -159,8 +231,9 @@ export interface FitTransform {
 /**
  * The transform of the initial view and of "Fit". `graph` is the size of the graph, `start` is the top center of the start node in graph
  * coordinates, `region` is the size of the visible region, `pad` is the padding.
- * When the graph fits at a scale of MIN_FIT_SCALE or more, it is centered at the largest scale that fits, but not larger than 1.
- * Otherwise the scale is MIN_FIT_SCALE and the start node is at the top center of the region; the rest of the graph is outside the region.
+ * The scale is the largest scale from MIN_FIT_SCALE to 1 at which the graph width fits; the height does not change the scale, because the
+ * user scrolls vertically. The top of the graph is at the top of the region. When the graph width fits, the graph is centered horizontally;
+ * else the start node is at the top center of the region.
  * An empty region or an empty graph gives scale 1 and translation (pad, pad).
  */
 export function fitTransform(
@@ -171,10 +244,7 @@ export function fitTransform(
 ): FitTransform {
   const finite = [graph.width, graph.height, start.x, start.y, region.width, region.height, pad].every(Number.isFinite);
   if (!finite || region.width <= 0 || region.height <= 0 || graph.width <= 0 || graph.height <= 0) return { x: pad, y: pad, k: 1 };
-  const k = Math.min(1, (region.width - 2 * pad) / graph.width, (region.height - 2 * pad) / graph.height);
-  if (k >= MIN_FIT_SCALE) {
-    return { x: (region.width - graph.width * k) / 2, y: Math.max(pad, (region.height - graph.height * k) / 2), k };
-  }
-  const s = MIN_FIT_SCALE;
-  return { x: region.width / 2 - start.x * s, y: pad - start.y * s, k: s };
+  const k = Math.max(MIN_FIT_SCALE, Math.min(1, (region.width - 2 * pad) / graph.width));
+  const x = graph.width * k <= region.width - 2 * pad ? (region.width - graph.width * k) / 2 : region.width / 2 - start.x * k;
+  return { x, y: pad - start.y * k, k };
 }
