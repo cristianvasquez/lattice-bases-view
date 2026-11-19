@@ -1,4 +1,4 @@
-import { LinkValue, ListValue, NullValue, NumberValue, StringValue } from 'obsidian';
+import { LinkValue, ListValue, NotNullValue, NullValue, NumberValue, StringValue } from 'obsidian';
 import { describe, expect, it } from 'vitest';
 import { convertValue } from '../src/bases';
 import { FakeErrorValue } from './bases-helpers';
@@ -40,6 +40,19 @@ describe('convertValue', () => {
   it('gives an error for an error value, also inside a list', () => {
     expect(convertValue(new FakeErrorValue('Unknown function'))).toEqual({ kind: 'error', message: 'Unknown function' });
     expect(convertValue(new ListValue([s('tree'), new FakeErrorValue('Bad')]))).toEqual({ kind: 'error', message: 'Bad' });
+  });
+
+  it('gives an error for a value with a message field when the static type is not "error"', () => {
+    class UntypedError extends NotNullValue {
+      readonly message = 'Unknown property';
+      override toString(): string {
+        return 'Error: Unknown property';
+      }
+      override isTruthy(): boolean {
+        return false;
+      }
+    }
+    expect(convertValue(new UntypedError())).toEqual({ kind: 'error', message: 'Unknown property' });
   });
 
   it('uses the display text of a link, else the target, without brackets', () => {

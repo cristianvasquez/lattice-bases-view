@@ -1,14 +1,18 @@
 // Conversion of evaluated Bases values. Needs the runtime classes of `obsidian` (instanceof checks).
-import { LinkValue, ListValue, NullValue, type Value } from 'obsidian';
+import { LinkValue, ListValue, NullValue, StringValue, type Value } from 'obsidian';
 import type { ConvertedValue } from './atlas';
 
 /**
  * `obsidian.d.ts` names `ErrorValue` in the JSDoc of `BasesEntry.getValue` but does not export the class.
- * This check uses the static `type` of the value class (all Value classes have one), with the class name as a fallback.
+ * Not verified against the Obsidian runtime. The check accepts three markers: the static `type` `'error'`
+ * (all Value classes have a static `type`), the class name `ErrorValue` (lost when the bundle is minified),
+ * and a string `message` field on a value that is not a text or list value.
  */
 function isErrorValue(value: Value): boolean {
   const ctor = value.constructor as { type?: unknown; name?: unknown };
-  return ctor.type === 'error' || ctor.name === 'ErrorValue';
+  if (ctor.type === 'error' || ctor.name === 'ErrorValue') return true;
+  if (value instanceof StringValue || value instanceof ListValue) return false;
+  return typeof (value as { message?: unknown }).message === 'string';
 }
 
 function errorMessage(value: Value): string {
