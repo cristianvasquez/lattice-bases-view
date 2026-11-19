@@ -11,8 +11,9 @@
   background-color: var(--background-primary);
 }
 
+/* A later rule with the same specificity (for example the toolbar with display: flex) must not show a hidden element. */
 .concept-atlas .is-hidden {
-  display: none;
+  display: none !important;
 }
 
 /* A hidden panel. The selector is more specific than the display rules of the regions. */
