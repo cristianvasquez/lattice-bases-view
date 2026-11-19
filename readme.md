@@ -21,7 +21,7 @@ pnpm verify   # tsc --noEmit, vitest run, production build of main.js
 pnpm build    # production build of main.js only
 ```
 
-`pnpm verify` runs 12 test files with 156 tests.
+`pnpm verify` runs 15 test files with 181 tests.
 
 ## Installation
 
@@ -77,6 +77,7 @@ The view does not show the properties of a single note. Use the Table layout of 
 - When all matching notes share a value, this is a fact about these records. It is not a rule about the domain.
 - The full lattice is the set of all concepts of the data. The status line "Full lattice" shows its size. The diagram shows only a part: the concepts below the current filter, at most "Concepts in the diagram". When the part is smaller than the sub-lattice, the diagram shows the concepts with the most notes. Double-click a concept, or select it and use the link "Filter to these K", to see the concepts below it.
 - The computation of the full lattice stops at the concept budget. Then the status line shows "more than N concepts (budget reached)".
+- The full lattice is computed in a Web Worker, so that the UI stays responsive. When a worker cannot start (for example a platform without workers, or a content security policy), the plugin computes on the UI thread in time slices. The result is the same. The attribute `data-computation` of the status line is `worker` or `main-thread`.
 
 ## Sample vault
 
@@ -90,7 +91,11 @@ The view does not show the properties of a single note. Use the Table layout of 
 - An attribute id is `<facet>:<value>`. When a facet key contains `:`, two different values can get the same id.
 - The diagram shows at most "Concepts in the diagram" concepts (`maxNodes`, default 20).
 - The plugin does not show implications.
-- The computation runs on the UI thread in time slices, not in a worker. `buildLattice` gives control to the event loop only between whole concepts. On a base with thousands of notes and hundreds of distinct values, one step can block the UI.
+- The worker does not send progress. The status line shows "Computing…" until the result arrives. A new data update or a closed view terminates the worker; the next computation starts a new worker.
+- The worker sends back all concepts of the full lattice (up to the budget) as bit sets, but the view uses only their number.
+- When the worker cannot start, the fallback on the UI thread gives control to the event loop only between whole concepts. On a base with thousands of notes and hundreds of distinct values, one step can block the UI.
+- The worker script is in `main.js` as a string, so `main.js` contains the FCA code two times (about 6 KB more).
+- The worker path is tested in Obsidian 1.15.1 on Linux (desktop). It is not tested on mobile.
 - The diagram part is computed on the UI thread for each filter change. While the lattice is hidden, the layout of the diagram is not computed; the displayed concepts are, because the notes column and the filter counts use them.
 - The behavior in Obsidian is tested by hand, not by automated tests. The automated tests cover the FCA core, the Bases adapter with a mock of `obsidian`, and the pure view modules.
 - The detection of error values from Bases is not verified against the Obsidian runtime.
