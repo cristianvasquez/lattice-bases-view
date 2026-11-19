@@ -14,5 +14,13 @@ export {
   lowerNeighbours,
   upperNeighbours,
 } from './derivation';
-export { type Cover, type LatticeStatus, type BuildLatticeOptions, type LatticeResult, buildLattice } from './lattice';
+export {
+  type Cover,
+  type LatticeStatus,
+  type BuildLatticeOptions,
+  type ComputeLatticeOptions,
+  type LatticeResult,
+  buildLattice,
+  computeLattice,
+} from './lattice';
 export { type ExploreResult, exploreBySupport } from './explore';

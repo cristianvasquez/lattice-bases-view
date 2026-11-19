@@ -176,6 +176,8 @@ The view does not show the properties of a single note. Use the Table layout of 
 - The diagram shows only a part of the full lattice: the concepts below the current filter, at most "Concepts in the diagram".
 - When the part is smaller than the concepts below the filter, the diagram shows the concepts with the most notes. Double-click a concept to see the concepts below it.
 - The computation of the full lattice stops at the concept budget. Then the status line shows "more than N concepts (budget reached)".
+- The plugin computes the full lattice in a Web Worker, so the UI stays responsive. When a worker cannot start, the plugin computes on the UI thread in time slices. The result is the same.
+- The attribute `data-computation` of the status line shows where the computation ran: `worker` or `main-thread`.
 
 ## Sample vault
 
@@ -191,7 +193,13 @@ The view does not show the properties of a single note. Use the Table layout of 
 - An attribute id is `<facet>:<value>`. When a facet key contains `:`, two different values can get the same id.
 - The diagram shows at most "Concepts in the diagram" concepts (`maxNodes`, default 20).
 - The plugin does not show implications.
-- The computation runs on the UI thread in time slices, not in a worker. `buildLattice` gives control to the event loop only between whole concepts. On a base with thousands of notes and hundreds of values, one step can block the UI.
+- The worker does not send progress. The status line shows "Computing…" until the result arrives.
+- New data or a closed view stops the worker. The next computation starts a new worker.
+- The worker sends back all concepts of the full lattice, up to the budget. The view uses only their number.
+- When the worker cannot start, the computation on the UI thread gives control to the event loop only between whole concepts. On a base with thousands of notes and hundreds of values, one step can block the UI.
+- If the worker starts and then stops responding with no error, the plugin does not detect it. There is no timeout.
+- `main.js` contains the worker script as a string, so it contains the FCA code two times (about 6 KB more).
+- The worker is tested in Obsidian 1.15.1 on Linux. It is not tested on mobile.
 - The plugin computes the diagram part on the UI thread for each filter change.
 - The behavior in Obsidian is tested by hand. The automated tests cover the FCA core, the Bases adapter with a mock of `obsidian`, and the view modules that have no DOM code.
 - The detection of error values from Bases is not verified against the Obsidian runtime.
@@ -205,7 +213,7 @@ pnpm build    # production build of main.js only
 pnpm dev      # build in watch mode
 ```
 
-`pnpm verify` runs 12 test files with 156 tests. `AGENTS.md` describes the code layout, the rules and the manual test in `test-vault`.
+`pnpm verify` runs 15 test files with 181 tests. `AGENTS.md` describes the code layout, the rules and the manual test in `test-vault`.
 
 The workflow `.github/workflows/release.yml` makes a GitHub release when you push a tag. The tag must be the version in `manifest.json`, for example `0.1.0`, without `v`.
 

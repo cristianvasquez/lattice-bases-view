@@ -1,7 +1,9 @@
 // The Bases view "Concept lattice". DOM code. The logic is in the pure modules state.ts, model.ts, layout.ts and text.ts.
 import { BasesView, Keymap, type QueryController, setIcon } from 'obsidian';
 import { type AtlasData, buildAtlasData } from '../bases';
-import { type FormalContext, buildLattice } from '../fca';
+import type { FormalContext } from '../fca';
+import { type ComputeMode, LatticeComputer } from '../worker/client';
+import { blobWorkerSource } from '../worker/source';
 import { COLUMN_WIDTHS_KEY, type ColumnWidths, type Side, columnRange, defaultWidth, fitWidths, readStoredWidths, setColumn, stepColumn } from './columns';
 import { VIEW_TYPE, readViewConfig, viewFacets } from './config';
 import { Diagram } from './diagram';
@@ -103,6 +105,10 @@ export class ConceptLatticeView extends BasesView {
   private error: string | null = null;
   private lattice: FullLatticeState | null = null;
   private abort: AbortController | null = null;
+  /** Computes the full lattice in a Web Worker, or on the UI thread when a worker cannot start. */
+  private readonly computer = new LatticeComputer(blobWorkerSource());
+  /** Where the last computation of the full lattice ran. Shown as `data-computation` on the status line. */
+  private computeMode: ComputeMode | null = null;
 
   constructor(controller: QueryController, containerEl: HTMLElement) {
     super(controller);
@@ -204,10 +210,12 @@ export class ConceptLatticeView extends BasesView {
     viewportObserver.observe(this.diagram.viewport);
     this.register(() => viewportObserver.disconnect());
     this.register(() => this.cancelLattice());
+    this.register(() => this.computer.dispose());
   }
 
   override onunload(): void {
     this.cancelLattice();
+    this.computer.dispose();
     this.root.remove();
   }
 
@@ -246,9 +254,12 @@ export class ConceptLatticeView extends BasesView {
     const controller = new AbortController();
     this.abort = controller;
     this.lattice = { kind: 'running' };
-    buildLattice(ctx, { maxConcepts, signal: controller.signal, covers: false })
-      .then((result) => {
+    // The view uses only the number of concepts of the full lattice, so the cover relations are not computed.
+    this.computer
+      .compute(ctx, { maxConcepts, covers: false }, controller.signal)
+      .then(({ result, mode }) => {
         if (controller.signal.aborted || result.status === 'cancelled') return;
+        this.computeMode = mode;
         this.lattice = { kind: result.status, count: result.concepts.length };
       })
       .catch((err: unknown) => {
@@ -496,6 +507,7 @@ export class ConceptLatticeView extends BasesView {
 
   private renderStatus(): void {
     this.statusEl.empty();
+    if (this.computeMode) this.statusEl.dataset.computation = this.computeMode;
     const model = this.model;
     if (!model || model.kind !== 'ok') return;
     if (this.lattice) this.statusEl.createDiv({ cls: 'lattice-bases-view-status-full', text: fullLatticeText(this.lattice) });

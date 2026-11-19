@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   compareLectic,
   buildLattice,
+  computeLattice,
   conceptOfAttributes,
   BitSet,
   exploreBySupport,
@@ -173,5 +174,40 @@ describe('buildLattice budget, cancellation and time slices', () => {
     expect(r.status).toBe('complete');
     expect(firedBeforeResolve).toBe(true);
     expect(r.concepts.length).toBeGreaterThan(100);
+  });
+});
+
+describe('computeLattice (synchronous, for the worker)', () => {
+  it('gives the same concepts, covers and status as buildLattice on random contexts', async () => {
+    for (const seed of SEEDS) {
+      const plain = randomPlainContext(seed, 8, 8);
+      const ctx = toContext(plain);
+      for (const covers of [true, false]) {
+        const sync = computeLattice(ctx, { maxConcepts: 1000, covers });
+        const sliced = await buildLattice(ctx, { maxConcepts: 1000, covers });
+        expect(sync.status).toBe('complete');
+        expect(sync.concepts.map(conceptKey)).toEqual(sliced.concepts.map(conceptKey));
+        expect(sync.covers).toEqual(sliced.covers);
+      }
+      const full = computeLattice(ctx, { maxConcepts: 1000 });
+      expect(coverKeys(full.concepts, full.covers)).toEqual(oracleCovers(oracleConcepts(plain)));
+    }
+  });
+
+  it("gives 'budget' with the first maxConcepts concepts, as buildLattice", async () => {
+    const ctx = toContext(randomPlainContext(3, 8, 8, true));
+    for (const max of [0, 1, 5]) {
+      const sync = computeLattice(ctx, { maxConcepts: max });
+      const sliced = await buildLattice(ctx, { maxConcepts: max });
+      expect(sync.status).toBe('budget');
+      expect(sync.concepts.map(conceptKey)).toEqual(sliced.concepts.map(conceptKey));
+      expect(sync.covers).toEqual([]);
+    }
+  });
+
+  it('throws a RangeError for a budget that is not valid', () => {
+    const ctx = toContext(randomPlainContext(3, 4, 4, true));
+    expect(() => computeLattice(ctx, { maxConcepts: -1 })).toThrow(RangeError);
+    expect(() => computeLattice(ctx, { maxConcepts: Number.NaN })).toThrow(RangeError);
   });
 });
