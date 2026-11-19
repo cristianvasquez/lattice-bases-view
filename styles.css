@@ -1,6 +1,6 @@
-/* Concept Atlas. Every selector starts with .concept-atlas. Use Obsidian theme variables only. */
+/* Lattice Bases View. Every selector starts with .lattice-bases-view. Use Obsidian theme variables only. */
 
-.concept-atlas {
+.lattice-bases-view {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -12,17 +12,17 @@
 }
 
 /* A later rule with the same specificity (for example the toolbar with display: flex) must not show a hidden element. */
-.concept-atlas .is-hidden {
+.lattice-bases-view .is-hidden {
   display: none !important;
 }
 
 /* A hidden panel. The selector is more specific than the display rules of the regions. */
-.concept-atlas .concept-atlas-region.is-hidden {
+.lattice-bases-view .lattice-bases-view-region.is-hidden {
   display: none;
 }
 
 /* In the DOM for assistive technology, not visible. */
-.concept-atlas .concept-atlas-visually-hidden {
+.lattice-bases-view .lattice-bases-view-visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -34,37 +34,37 @@
   border: 0;
 }
 
-.concept-atlas .concept-atlas-main {
+.lattice-bases-view .lattice-bases-view-main {
   display: grid;
   /* Filters, handle, center, handle, notes. The view sets the tracks: a hidden panel has no width, the flexible panel takes the remaining width, a side column has the width that its handle sets. The handle tracks have no width. Each item has a fixed track, so that a hidden item does not move the others. The row has the height of the view, so that the content of the columns does not change the size of the diagram viewport. */
-  grid-template-columns: var(--concept-atlas-filters-track, 15rem) 0 var(--concept-atlas-lattice-track, minmax(0, 1fr)) 0 var(--concept-atlas-notes-track, 17rem);
+  grid-template-columns: var(--lattice-bases-view-filters-track, 15rem) 0 var(--lattice-bases-view-lattice-track, minmax(0, 1fr)) 0 var(--lattice-bases-view-notes-track, 17rem);
   grid-template-rows: minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
 }
 
-.concept-atlas .concept-atlas-filters {
+.lattice-bases-view .lattice-bases-view-filters {
   grid-column: 1;
 }
 
-.concept-atlas .concept-atlas-handle-filters {
+.lattice-bases-view .lattice-bases-view-handle-filters {
   grid-column: 2;
 }
 
-.concept-atlas .concept-atlas-center {
+.lattice-bases-view .lattice-bases-view-center {
   grid-column: 3;
 }
 
-.concept-atlas .concept-atlas-handle-notes {
+.lattice-bases-view .lattice-bases-view-handle-notes {
   grid-column: 4;
 }
 
-.concept-atlas .concept-atlas-notes-column {
+.lattice-bases-view .lattice-bases-view-notes-column {
   grid-column: 5;
 }
 
 /* Toggles that hide or show the panels: one row above the columns, at the right. */
-.concept-atlas .concept-atlas-panel-bar {
+.lattice-bases-view .lattice-bases-view-panel-bar {
   display: flex;
   flex: 0 0 auto;
   justify-content: flex-end;
@@ -73,38 +73,38 @@
   border-bottom: var(--border-width) solid var(--background-modifier-border);
 }
 
-.concept-atlas .concept-atlas-panel-toggle {
+.lattice-bases-view .lattice-bases-view-panel-toggle {
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-panel-toggle.is-active {
+.lattice-bases-view .lattice-bases-view-panel-toggle.is-active {
   color: var(--text-normal);
   background-color: var(--background-modifier-active-hover);
 }
 
-.concept-atlas .concept-atlas-region {
+.lattice-bases-view .lattice-bases-view-region {
   min-height: 0;
   min-width: 0;
   overflow: auto;
   padding: var(--size-4-2) var(--size-4-3);
 }
 
-.concept-atlas .concept-atlas-filters {
+.lattice-bases-view .lattice-bases-view-filters {
   display: flex;
   flex-direction: column;
   gap: var(--size-4-2);
   border-right: var(--border-width) solid var(--background-modifier-border);
 }
 
-.concept-atlas .concept-atlas-center {
+.lattice-bases-view .lattice-bases-view-center {
   display: flex;
   flex-direction: column;
   gap: var(--size-4-1);
   overflow: hidden;
 }
 
-.concept-atlas .concept-atlas-notes-column {
+.lattice-bases-view .lattice-bases-view-notes-column {
   display: flex;
   flex-direction: column;
   gap: var(--size-4-1);
@@ -115,7 +115,7 @@
 }
 
 /* Drag handle between two columns. It is in a track with no width and covers 4 px at each side of the border. */
-.concept-atlas .concept-atlas-handle {
+.lattice-bases-view .lattice-bases-view-handle {
   position: relative;
   z-index: 1;
   width: 8px;
@@ -125,7 +125,7 @@
   outline: none;
 }
 
-.concept-atlas .concept-atlas-handle::after {
+.lattice-bases-view .lattice-bases-view-handle::after {
   content: '';
   position: absolute;
   top: 0;
@@ -135,24 +135,24 @@
   background-color: transparent;
 }
 
-.concept-atlas .concept-atlas-handle:hover::after,
-.concept-atlas .concept-atlas-handle:focus-visible::after,
-.concept-atlas .concept-atlas-handle.is-dragging::after {
+.lattice-bases-view .lattice-bases-view-handle:hover::after,
+.lattice-bases-view .lattice-bases-view-handle:focus-visible::after,
+.lattice-bases-view .lattice-bases-view-handle.is-dragging::after {
   background-color: var(--interactive-accent);
 }
 
 /* Stacked layout below 700 px of width (class set by a ResizeObserver). The handles are hidden and the widths have no effect. */
-.concept-atlas.is-narrow .concept-atlas-handle {
+.lattice-bases-view.is-narrow .lattice-bases-view-handle {
   display: none;
 }
 
-.concept-atlas.is-narrow .concept-atlas-main {
+.lattice-bases-view.is-narrow .lattice-bases-view-main {
   display: flex;
   flex-direction: column;
   overflow: auto;
 }
 
-.concept-atlas.is-narrow .concept-atlas-region {
+.lattice-bases-view.is-narrow .lattice-bases-view-region {
   flex: 0 0 auto;
   overflow: visible;
   border-left: none;
@@ -160,28 +160,28 @@
   border-bottom: var(--border-width) solid var(--background-modifier-border);
 }
 
-.concept-atlas.is-narrow .concept-atlas-viewport {
+.lattice-bases-view.is-narrow .lattice-bases-view-viewport {
   flex: 0 0 auto;
   height: 22rem;
 }
 
 /* Narrow: the page scrolls, not the list. */
-.concept-atlas.is-narrow .concept-atlas-notes-scroll {
+.lattice-bases-view.is-narrow .lattice-bases-view-notes-scroll {
   flex: 0 0 auto;
   overflow: visible;
 }
 
-.concept-atlas .concept-atlas-search {
+.lattice-bases-view .lattice-bases-view-search {
   width: 100%;
 }
 
-.concept-atlas .concept-atlas-group {
+.lattice-bases-view .lattice-bases-view-group {
   margin: 0;
   padding: var(--size-4-1) 0;
   border: none;
 }
 
-.concept-atlas .concept-atlas-group legend {
+.lattice-bases-view .lattice-bases-view-group legend {
   padding: 0;
   font-weight: var(--font-semibold);
   color: var(--text-muted);
@@ -189,7 +189,7 @@
   font-size: var(--font-ui-smaller);
 }
 
-.concept-atlas .concept-atlas-value {
+.lattice-bases-view .lattice-bases-view-value {
   /* Check box, label, count in one row. A long label wraps inside its own cell. */
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -199,63 +199,63 @@
   cursor: pointer;
 }
 
-.concept-atlas .concept-atlas-value.is-disabled {
+.lattice-bases-view .lattice-bases-view-value.is-disabled {
   color: var(--text-faint);
   cursor: default;
 }
 
-.concept-atlas .concept-atlas-value-label {
+.lattice-bases-view .lattice-bases-view-value-label {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.concept-atlas .concept-atlas-value-count {
+.lattice-bases-view .lattice-bases-view-value-count {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.concept-atlas .concept-atlas-value-shared {
+.lattice-bases-view .lattice-bases-view-value-shared {
   grid-column: 2 / -1;
   color: var(--text-accent);
   font-size: var(--font-ui-smaller);
 }
 
-.concept-atlas .concept-atlas-status {
+.lattice-bases-view .lattice-bases-view-status {
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-warning {
+.lattice-bases-view .lattice-bases-view-warning {
   color: var(--text-warning);
   font-size: var(--font-ui-smaller);
 }
 
-.concept-atlas .concept-atlas-toolbar {
+.lattice-bases-view .lattice-bases-view-toolbar {
   display: flex;
   gap: var(--size-4-1);
 }
 
-.concept-atlas .concept-atlas-back {
+.lattice-bases-view .lattice-bases-view-back {
   display: inline-flex;
   align-items: center;
   gap: var(--size-4-1);
 }
 
-.concept-atlas .concept-atlas-back-icon {
+.lattice-bases-view .lattice-bases-view-back-icon {
   display: inline-flex;
   --icon-size: var(--icon-s);
 }
 
-.concept-atlas .concept-atlas-hint {
+.lattice-bases-view .lattice-bases-view-hint {
   color: var(--text-muted);
   font-size: var(--font-ui-smaller);
 }
 
-.concept-atlas .concept-atlas-message {
+.lattice-bases-view .lattice-bases-view-message {
   padding: var(--size-4-4);
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-viewport {
+.lattice-bases-view .lattice-bases-view-viewport {
   position: relative;
   flex: 1 1 auto;
   min-height: 12rem;
@@ -267,95 +267,95 @@
   touch-action: none;
 }
 
-.concept-atlas .concept-atlas-viewport.is-dragging {
+.lattice-bases-view .lattice-bases-view-viewport.is-dragging {
   cursor: grabbing;
 }
 
-.concept-atlas .concept-atlas-svg {
+.lattice-bases-view .lattice-bases-view-svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.concept-atlas .concept-atlas-edge {
+.lattice-bases-view .lattice-bases-view-edge {
   stroke: var(--text-faint);
   stroke-width: 1.2;
 }
 
-.concept-atlas .concept-atlas-node {
+.lattice-bases-view .lattice-bases-view-node {
   cursor: pointer;
   outline: none;
 }
 
-.concept-atlas .concept-atlas-node-box {
+.lattice-bases-view .lattice-bases-view-node-box {
   fill: var(--background-primary);
   stroke: var(--background-modifier-border);
   stroke-width: 1.5;
 }
 
-.concept-atlas .concept-atlas-node:hover .concept-atlas-node-box {
+.lattice-bases-view .lattice-bases-view-node:hover .lattice-bases-view-node-box {
   stroke: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-node.is-start .concept-atlas-node-box {
+.lattice-bases-view .lattice-bases-view-node.is-start .lattice-bases-view-node-box {
   stroke: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-node.is-zero .concept-atlas-node-box {
+.lattice-bases-view .lattice-bases-view-node.is-zero .lattice-bases-view-node-box {
   stroke-dasharray: 5 4;
   fill: var(--background-secondary);
 }
 
 /* Before the rules for the focused concept and the keyboard focus, so that these rules win. */
-.concept-atlas .concept-atlas-node.is-marked .concept-atlas-node-box {
+.lattice-bases-view .lattice-bases-view-node.is-marked .lattice-bases-view-node-box {
   stroke: var(--interactive-accent);
   stroke-width: 2;
 }
 
-.concept-atlas .concept-atlas-node.is-focused .concept-atlas-node-box {
+.lattice-bases-view .lattice-bases-view-node.is-focused .lattice-bases-view-node-box {
   fill: var(--background-modifier-hover);
   stroke: var(--interactive-accent);
   stroke-width: 2;
 }
 
-.concept-atlas .concept-atlas-node:focus-visible .concept-atlas-node-box {
+.lattice-bases-view .lattice-bases-view-node:focus-visible .lattice-bases-view-node-box {
   stroke: var(--interactive-accent);
   stroke-width: 3;
 }
 
 /* Highlight of a node and all displayed nodes above it (pointer, keyboard focus or focused concept). */
-.concept-atlas .concept-atlas-edge.is-marked {
+.lattice-bases-view .lattice-bases-view-edge.is-marked {
   stroke: var(--interactive-accent);
   stroke-width: 2;
 }
 
-.concept-atlas .has-highlight .concept-atlas-edge:not(.is-marked),
-.concept-atlas .has-highlight .concept-atlas-node:not(.is-marked) {
+.lattice-bases-view .has-highlight .lattice-bases-view-edge:not(.is-marked),
+.lattice-bases-view .has-highlight .lattice-bases-view-node:not(.is-marked) {
   opacity: 0.35;
 }
 
-.concept-atlas .concept-atlas-node-label {
+.lattice-bases-view .lattice-bases-view-node-label {
   fill: var(--text-normal);
   font-family: var(--font-interface);
   font-size: var(--font-ui-small);
 }
 
-.concept-atlas .concept-atlas-node-support {
+.lattice-bases-view .lattice-bases-view-node-support {
   fill: var(--text-muted);
   font-family: var(--font-interface);
   font-size: var(--font-ui-smaller);
 }
 
-.concept-atlas .concept-atlas-node.is-zero .concept-atlas-node-label {
+.lattice-bases-view .lattice-bases-view-node.is-zero .lattice-bases-view-node-label {
   fill: var(--text-muted);
 }
 
 /* Notes column at the right. */
-.concept-atlas .concept-atlas-notes-count {
+.lattice-bases-view .lattice-bases-view-notes-count {
   font-weight: var(--font-semibold);
 }
 
-.concept-atlas .concept-atlas-notes-focus {
+.lattice-bases-view .lattice-bases-view-notes-focus {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -363,7 +363,7 @@
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-notes-focus .concept-atlas-filter-to {
+.lattice-bases-view .lattice-bases-view-notes-focus .lattice-bases-view-filter-to {
   height: auto;
   padding: 0;
   border: none;
@@ -374,27 +374,27 @@
   cursor: var(--cursor-link);
 }
 
-.concept-atlas .concept-atlas-notes-focus .concept-atlas-filter-to:hover {
+.lattice-bases-view .lattice-bases-view-notes-focus .lattice-bases-view-filter-to:hover {
   color: var(--link-color-hover);
   text-decoration: underline;
 }
 
-.concept-atlas .concept-atlas-notes-focus:empty {
+.lattice-bases-view .lattice-bases-view-notes-focus:empty {
   display: none;
 }
 
-.concept-atlas .concept-atlas-muted {
+.lattice-bases-view .lattice-bases-view-muted {
   margin: var(--size-4-1) 0;
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-notes-scroll {
+.lattice-bases-view .lattice-bases-view-notes-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
 }
 
-.concept-atlas .concept-atlas-notes {
+.lattice-bases-view .lattice-bases-view-notes {
   margin: 0;
   padding-left: 0;
   list-style: none;
@@ -402,17 +402,17 @@
 
 /* A wide notes column shows the list in several columns, in the same order (down, then to the next column). */
 @container (min-width: 30rem) {
-  .concept-atlas .concept-atlas-notes {
+  .lattice-bases-view .lattice-bases-view-notes {
     columns: 16rem;
     column-gap: var(--size-4-4);
   }
 
-  .concept-atlas .concept-atlas-note {
+  .lattice-bases-view .lattice-bases-view-note {
     break-inside: avoid;
   }
 }
 
-.concept-atlas .concept-atlas-note {
+.lattice-bases-view .lattice-bases-view-note {
   padding: var(--size-2-1) 0 var(--size-2-1) var(--size-4-2);
   border-left: 3px solid transparent;
   overflow: hidden;
@@ -421,25 +421,25 @@
 }
 
 /* Notes of the focused concept, or of the concept under the pointer or with the keyboard focus. */
-.concept-atlas .concept-atlas-note.is-in-concept {
+.lattice-bases-view .lattice-bases-view-note.is-in-concept {
   border-left-color: var(--interactive-accent);
 }
 
-.concept-atlas .has-marks .concept-atlas-note:not(.is-in-concept) {
+.lattice-bases-view .has-marks .lattice-bases-view-note:not(.is-in-concept) {
   opacity: 0.5;
 }
 
-.concept-atlas .concept-atlas-footer {
+.lattice-bases-view .lattice-bases-view-footer {
   flex: 0 0 auto;
   padding: var(--size-4-1) var(--size-4-3);
   border-top: var(--border-width) solid var(--background-modifier-border);
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-footer summary {
+.lattice-bases-view .lattice-bases-view-footer summary {
   cursor: pointer;
 }
 
-.concept-atlas .concept-atlas-footer p {
+.lattice-bases-view .lattice-bases-view-footer p {
   margin: var(--size-4-1) 0;
 }

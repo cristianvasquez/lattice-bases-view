@@ -6,7 +6,7 @@ const read = (name: string) => JSON.parse(readFileSync(new URL(`../${name}`, imp
 describe('manifest', () => {
   it('has the plugin id and the version of package.json', () => {
     const manifest = read('manifest.json');
-    expect(manifest.id).toBe('concept-atlas');
+    expect(manifest.id).toBe('lattice-bases-view');
     expect(manifest.version).toBe(read('package.json').version);
     expect(read('versions.json')[manifest.version]).toBe(manifest.minAppVersion);
   });

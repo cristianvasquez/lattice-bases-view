@@ -8,7 +8,7 @@ export interface ColumnWidths {
 export type Side = keyof ColumnWidths;
 
 /** The key of the stored widths (`App.saveLocalStorage`, per vault). */
-export const COLUMN_WIDTHS_KEY = 'concept-atlas-column-widths';
+export const COLUMN_WIDTHS_KEY = 'lattice-bases-view-column-widths';
 /** The change of a width for one press of ArrowLeft or ArrowRight on a handle. */
 export const COLUMN_STEP = 16;
 

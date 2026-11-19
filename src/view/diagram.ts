@@ -74,12 +74,12 @@ export class Diagram {
   private keyboard: number | null = null;
   private selected: number | null = null;
   /** Prefix of the element ids of this diagram. */
-  private readonly idPrefix = `concept-atlas-diagram-${++diagramCount}`;
+  private readonly idPrefix = `lattice-bases-view-diagram-${++diagramCount}`;
 
   /** `labelId` is the id of the element that gives the accessible name of the diagram. It is not an SVG `title`, because Chromium shows a `title` of the root SVG as a tooltip on the full diagram. */
   constructor(parent: HTMLElement, component: Component, labelId: string, private readonly handlers: DiagramHandlers) {
-    this.viewport = parent.createDiv({ cls: 'concept-atlas-viewport' });
-    this.svg = svgEl('svg', this.viewport, { role: 'group', 'aria-labelledby': labelId }, 'concept-atlas-svg');
+    this.viewport = parent.createDiv({ cls: 'lattice-bases-view-viewport' });
+    this.svg = svgEl('svg', this.viewport, { role: 'group', 'aria-labelledby': labelId }, 'lattice-bases-view-svg');
     this.group = svgEl('g', this.svg, {});
 
     component.registerDomEvent(this.viewport, 'pointerdown', (ev) => this.onPointerDown(ev));
@@ -113,16 +113,16 @@ export class Diagram {
     const w = layout.nodeWidth;
     const half = (node: DisplayNode | undefined) => nodeHeight(node) / 2;
 
-    const edges = svgEl('g', this.group, {}, 'concept-atlas-edges');
+    const edges = svgEl('g', this.group, {}, 'lattice-bases-view-edges');
     this.covers = covers;
     this.edgeEls = covers.map(([u, l]) =>
-      svgEl('line', edges, { x1: layout.x[u]!, y1: layout.y[u]! + half(nodes[u]), x2: layout.x[l]!, y2: layout.y[l]! - half(nodes[l]) }, 'concept-atlas-edge'),
+      svgEl('line', edges, { x1: layout.x[u]!, y1: layout.y[u]! + half(nodes[u]), x2: layout.x[l]!, y2: layout.y[l]! - half(nodes[l]) }, 'lattice-bases-view-edge'),
     );
     this.nodeEls = [];
 
     let focusEl: SVGGElement | null = null;
     for (const node of nodes) {
-      const classes = ['concept-atlas-node'];
+      const classes = ['lattice-bases-view-node'];
       if (node.zero) classes.push('is-zero');
       if (node.isStart) classes.push('is-start');
       if (node.compact) classes.push('is-compact');
@@ -145,10 +145,10 @@ export class Diagram {
         classes.join(' '),
       );
       svgEl('title', g, { id: nodeTitleId }).textContent = node.ariaLabel;
-      svgEl('rect', g, { width: nw, height: nh, rx: 6, ry: 6 }, 'concept-atlas-node-box');
+      svgEl('rect', g, { width: nw, height: nh, rx: 6, ry: 6 }, 'lattice-bases-view-node-box');
       const single = node.sublabel === '';
-      svgEl('text', g, { x: nw / 2, y: single ? nh / 2 + 4 : 19, 'text-anchor': 'middle' }, node.compact ? 'concept-atlas-node-support' : 'concept-atlas-node-label').textContent = node.label;
-      if (!single) svgEl('text', g, { x: nw / 2, y: 37, 'text-anchor': 'middle' }, 'concept-atlas-node-support').textContent = node.sublabel;
+      svgEl('text', g, { x: nw / 2, y: single ? nh / 2 + 4 : 19, 'text-anchor': 'middle' }, node.compact ? 'lattice-bases-view-node-support' : 'lattice-bases-view-node-label').textContent = node.label;
+      if (!single) svgEl('text', g, { x: nw / 2, y: 37, 'text-anchor': 'middle' }, 'lattice-bases-view-node-support').textContent = node.sublabel;
       if (domFocus === node.index) focusEl = g;
       this.nodeEls[node.index] = g;
     }

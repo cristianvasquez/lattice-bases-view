@@ -45,8 +45,8 @@ let viewCount = 0;
 
 /** Adds a region with a heading that is not visible. The heading gives the accessible name of the region (no `aria-label`, because Obsidian shows a tooltip for it). */
 function createRegion(parent: HTMLElement, cls: string, id: string, name: string): HTMLDivElement {
-  const region = parent.createDiv({ cls: `concept-atlas-region ${cls}`, attr: { role: 'region', 'aria-labelledby': id } });
-  region.createEl('h2', { cls: 'concept-atlas-visually-hidden', text: name, attr: { id } });
+  const region = parent.createDiv({ cls: `lattice-bases-view-region ${cls}`, attr: { role: 'region', 'aria-labelledby': id } });
+  region.createEl('h2', { cls: 'lattice-bases-view-visually-hidden', text: name, attr: { id } });
   return region;
 }
 
@@ -106,42 +106,42 @@ export class ConceptLatticeView extends BasesView {
 
   constructor(controller: QueryController, containerEl: HTMLElement) {
     super(controller);
-    this.root = containerEl.createDiv({ cls: 'concept-atlas' });
-    const idPrefix = `concept-atlas-view-${++viewCount}`;
+    this.root = containerEl.createDiv({ cls: 'lattice-bases-view' });
+    const idPrefix = `lattice-bases-view-view-${++viewCount}`;
     this.widths = readStoredWidths(this.app.loadLocalStorage(COLUMN_WIDTHS_KEY), remSize(this.root));
     this.panels = readStoredPanels(this.app.loadLocalStorage(PANELS_KEY));
 
-    const panelBar = this.root.createDiv({ cls: 'concept-atlas-panel-bar', attr: { role: 'group', 'aria-labelledby': `${idPrefix}-panels` } });
-    panelBar.createSpan({ cls: 'concept-atlas-visually-hidden', text: 'Panels', attr: { id: `${idPrefix}-panels` } });
+    const panelBar = this.root.createDiv({ cls: 'lattice-bases-view-panel-bar', attr: { role: 'group', 'aria-labelledby': `${idPrefix}-panels` } });
+    panelBar.createSpan({ cls: 'lattice-bases-view-visually-hidden', text: 'Panels', attr: { id: `${idPrefix}-panels` } });
     const toggles = {} as Record<Panel, HTMLButtonElement>;
     for (const panel of PANELS) {
-      const button = panelBar.createEl('button', { cls: 'concept-atlas-panel-toggle', text: PANEL_NAMES[panel], attr: { 'data-panel': panel } });
+      const button = panelBar.createEl('button', { cls: 'lattice-bases-view-panel-toggle', text: PANEL_NAMES[panel], attr: { 'data-panel': panel } });
       this.registerDomEvent(button, 'click', () => this.setPanels(togglePanel(this.panels, panel)));
       toggles[panel] = button;
     }
     this.toggles = toggles;
 
-    const main = this.root.createDiv({ cls: 'concept-atlas-main' });
+    const main = this.root.createDiv({ cls: 'lattice-bases-view-main' });
     this.mainEl = main;
 
-    const filters = createRegion(main, 'concept-atlas-filters', `${idPrefix}-filters`, 'Filters');
-    const clear = filters.createEl('button', { cls: 'concept-atlas-clear', text: 'Clear filters' });
-    this.groupsEl = filters.createDiv({ cls: 'concept-atlas-groups' });
+    const filters = createRegion(main, 'lattice-bases-view-filters', `${idPrefix}-filters`, 'Filters');
+    const clear = filters.createEl('button', { cls: 'lattice-bases-view-clear', text: 'Clear filters' });
+    this.groupsEl = filters.createDiv({ cls: 'lattice-bases-view-groups' });
     const filtersHandle = this.createHandle(main, 'filters', `${idPrefix}-filters-handle`, 'Width of the filters column');
 
-    const center = createRegion(main, 'concept-atlas-center', `${idPrefix}-diagram`, 'Concept diagram');
-    this.statusEl = center.createDiv({ cls: 'concept-atlas-status', attr: { 'aria-live': 'polite' } });
-    this.warningsEl = center.createDiv({ cls: 'concept-atlas-warnings' });
-    this.toolbarEl = center.createDiv({ cls: 'concept-atlas-toolbar' });
-    this.backButton = this.toolbarEl.createEl('button', { cls: 'concept-atlas-back', attr: { 'aria-label': 'Back to the previous filter' } });
-    setIcon(this.backButton.createSpan({ cls: 'concept-atlas-back-icon' }), 'arrow-left');
+    const center = createRegion(main, 'lattice-bases-view-center', `${idPrefix}-diagram`, 'Concept diagram');
+    this.statusEl = center.createDiv({ cls: 'lattice-bases-view-status', attr: { 'aria-live': 'polite' } });
+    this.warningsEl = center.createDiv({ cls: 'lattice-bases-view-warnings' });
+    this.toolbarEl = center.createDiv({ cls: 'lattice-bases-view-toolbar' });
+    this.backButton = this.toolbarEl.createEl('button', { cls: 'lattice-bases-view-back', attr: { 'aria-label': 'Back to the previous filter' } });
+    setIcon(this.backButton.createSpan({ cls: 'lattice-bases-view-back-icon' }), 'arrow-left');
     this.backButton.createSpan({ text: 'Back' });
     this.backButton.disabled = true;
     const zoomIn = this.toolbarEl.createEl('button', { text: '+', attr: { 'aria-label': 'Zoom in (Ctrl+scroll)' } });
     const zoomOut = this.toolbarEl.createEl('button', { text: '−', attr: { 'aria-label': 'Zoom out (Ctrl+scroll)' } });
     const fit = this.toolbarEl.createEl('button', { text: 'Fit', attr: { 'aria-label': 'Fit the diagram to the view' } });
-    this.hintEl = center.createDiv({ cls: 'concept-atlas-hint', text: HIGHLIGHT_HINT });
-    this.messageEl = center.createDiv({ cls: 'concept-atlas-message' });
+    this.hintEl = center.createDiv({ cls: 'lattice-bases-view-hint', text: HIGHLIGHT_HINT });
+    this.messageEl = center.createDiv({ cls: 'lattice-bases-view-message' });
     this.diagram = new Diagram(center, this, `${idPrefix}-diagram`, {
       activate: (index) => this.focusNode(index),
       toggleFilter: (index) => this.toggleFilter(index),
@@ -154,23 +154,23 @@ export class ConceptLatticeView extends BasesView {
 
     const notesHandle = this.createHandle(main, 'notes', `${idPrefix}-notes-handle`, 'Width of the notes column');
     this.handles = { filters: filtersHandle, notes: notesHandle };
-    this.notesEl = createRegion(main, 'concept-atlas-notes-column', `${idPrefix}-notes`, 'Notes');
+    this.notesEl = createRegion(main, 'lattice-bases-view-notes-column', `${idPrefix}-notes`, 'Notes');
     this.searchInput = this.notesEl.createEl('input', {
-      cls: 'concept-atlas-search',
+      cls: 'lattice-bases-view-search',
       type: 'search',
       placeholder: 'Search note names',
       attr: { 'aria-label': 'Search note names' },
     });
-    this.notesCountEl = this.notesEl.createDiv({ cls: 'concept-atlas-notes-count', attr: { 'aria-live': 'polite' } });
-    this.notesFocusEl = this.notesEl.createDiv({ cls: 'concept-atlas-notes-focus' });
-    this.notesMessageEl = this.notesEl.createDiv({ cls: 'concept-atlas-muted' });
+    this.notesCountEl = this.notesEl.createDiv({ cls: 'lattice-bases-view-notes-count', attr: { 'aria-live': 'polite' } });
+    this.notesFocusEl = this.notesEl.createDiv({ cls: 'lattice-bases-view-notes-focus' });
+    this.notesMessageEl = this.notesEl.createDiv({ cls: 'lattice-bases-view-muted' });
     // The list is in a scroll container, so that a list with several columns (wide notes column) grows down and scrolls vertically.
-    const notesScroll = this.notesEl.createDiv({ cls: 'concept-atlas-notes-scroll' });
-    this.notesListEl = notesScroll.createEl('ul', { cls: 'concept-atlas-notes' });
+    const notesScroll = this.notesEl.createDiv({ cls: 'lattice-bases-view-notes-scroll' });
+    this.notesListEl = notesScroll.createEl('ul', { cls: 'lattice-bases-view-notes' });
     this.panelEls = { filters, lattice: center, notes: this.notesEl };
     this.scrollEls = { filters: [filters], lattice: [], notes: [notesScroll] };
 
-    const footer = this.root.createEl('details', { cls: 'concept-atlas-footer' });
+    const footer = this.root.createEl('details', { cls: 'lattice-bases-view-footer' });
     footer.createEl('summary', { text: 'What the lattice shows' });
     footer.createEl('p', { text: EXPLANATION });
 
@@ -314,10 +314,10 @@ export class ConceptLatticeView extends BasesView {
   /** Adds a drag handle that changes the width of a side column. It is a focusable separator: ArrowLeft and ArrowRight change the width; a double-click restores the default width. */
   private createHandle(parent: HTMLElement, side: Side, id: string, name: string): HTMLDivElement {
     const handle = parent.createDiv({
-      cls: `concept-atlas-handle concept-atlas-handle-${side}`,
+      cls: `lattice-bases-view-handle lattice-bases-view-handle-${side}`,
       attr: { role: 'separator', 'aria-orientation': 'vertical', tabindex: '0', 'aria-labelledby': id },
     });
-    handle.createSpan({ cls: 'concept-atlas-visually-hidden', text: name, attr: { id } });
+    handle.createSpan({ cls: 'lattice-bases-view-visually-hidden', text: name, attr: { id } });
     let drag: { id: number; x: number; width: number } | null = null;
     this.registerDomEvent(handle, 'pointerdown', (ev) => {
       if (ev.button !== 0) return;
@@ -426,9 +426,9 @@ export class ConceptLatticeView extends BasesView {
       return panel === layout.flexible ? 'minmax(0, 1fr)' : `${width}px`;
     };
     this.mainEl.setCssProps({
-      '--concept-atlas-filters-track': track('filters', widths.filters),
-      '--concept-atlas-lattice-track': track('lattice', 0),
-      '--concept-atlas-notes-track': track('notes', widths.notes),
+      '--lattice-bases-view-filters-track': track('filters', widths.filters),
+      '--lattice-bases-view-lattice-track': track('lattice', 0),
+      '--lattice-bases-view-notes-track': track('notes', widths.notes),
     });
     if (total <= 0) return;
     for (const side of ['filters', 'notes'] as const) {
@@ -498,13 +498,13 @@ export class ConceptLatticeView extends BasesView {
     this.statusEl.empty();
     const model = this.model;
     if (!model || model.kind !== 'ok') return;
-    if (this.lattice) this.statusEl.createDiv({ cls: 'concept-atlas-status-full', text: fullLatticeText(this.lattice) });
-    this.statusEl.createDiv({ cls: 'concept-atlas-status-shown', text: shownText(model.nodes.length, model.truncated) });
+    if (this.lattice) this.statusEl.createDiv({ cls: 'lattice-bases-view-status-full', text: fullLatticeText(this.lattice) });
+    this.statusEl.createDiv({ cls: 'lattice-bases-view-status-shown', text: shownText(model.nodes.length, model.truncated) });
   }
 
   private renderWarnings(): void {
     this.warningsEl.empty();
-    for (const warning of this.loaded?.warnings ?? []) this.warningsEl.createDiv({ cls: 'concept-atlas-warning', text: warning });
+    for (const warning of this.loaded?.warnings ?? []) this.warningsEl.createDiv({ cls: 'lattice-bases-view-warning', text: warning });
   }
 
   private renderFilters(): void {
@@ -512,18 +512,18 @@ export class ConceptLatticeView extends BasesView {
     const model = this.model;
     if (!model || model.kind !== 'ok') return;
     for (const group of model.groups) {
-      const fieldset = this.groupsEl.createEl('fieldset', { cls: 'concept-atlas-group' });
+      const fieldset = this.groupsEl.createEl('fieldset', { cls: 'lattice-bases-view-group' });
       fieldset.createEl('legend', { text: group.name });
       for (const value of group.values) {
-        const label = fieldset.createEl('label', { cls: 'concept-atlas-value' });
+        const label = fieldset.createEl('label', { cls: 'lattice-bases-view-value' });
         label.toggleClass('is-disabled', value.disabled);
         label.toggleClass('is-shared', value.shared);
         const box = label.createEl('input', { type: 'checkbox', attr: { 'data-attribute': value.id } });
         box.checked = value.selected;
         box.disabled = value.disabled;
-        label.createSpan({ cls: 'concept-atlas-value-label', text: value.label, attr: { title: value.fullLabel } });
-        label.createSpan({ cls: 'concept-atlas-value-count', text: String(value.count), attr: { 'aria-label': notesText(value.count) } });
-        if (value.shared) label.createSpan({ cls: 'concept-atlas-value-shared', text: 'shared by all matching notes' });
+        label.createSpan({ cls: 'lattice-bases-view-value-label', text: value.label, attr: { title: value.fullLabel } });
+        label.createSpan({ cls: 'lattice-bases-view-value-count', text: String(value.count), attr: { 'aria-label': notesText(value.count) } });
+        if (value.shared) label.createSpan({ cls: 'lattice-bases-view-value-shared', text: 'shared by all matching notes' });
       }
     }
   }
@@ -545,7 +545,7 @@ export class ConceptLatticeView extends BasesView {
       // One short line: a link when the filter can change to the focused concept, else a plain text.
       if (notes.focus.canFilterTo) {
         this.notesFocusEl.createEl('button', {
-          cls: 'concept-atlas-filter-to',
+          cls: 'lattice-bases-view-filter-to',
           text: filterToText(notes.focus.support),
           attr: { 'data-action': 'filter-to', 'aria-label': `${focusCountText(notes.focus.support)}. Set the filter to this concept.` },
         });
@@ -554,7 +554,7 @@ export class ConceptLatticeView extends BasesView {
       }
     }
     for (const note of notes.items) {
-      const item = this.notesListEl.createEl('li', { cls: 'concept-atlas-note', attr: { 'data-note': note.path } });
+      const item = this.notesListEl.createEl('li', { cls: 'lattice-bases-view-note', attr: { 'data-note': note.path } });
       item.toggleClass('is-in-concept', note.inConcept);
       item.createEl('a', { cls: 'internal-link', text: note.name, href: note.path, attr: { 'data-path': note.path, title: note.name } });
     }

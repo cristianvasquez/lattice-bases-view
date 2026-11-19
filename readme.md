@@ -7,7 +7,7 @@ tags: [repo/pkm]
 
 ## What it does
 
-Concept Atlas adds the layout "Concept lattice" to Obsidian Bases. The layout computes a concept lattice (Formal Concept Analysis) from the values of the properties that you select for the view in the base (the facets). Each concept is a set of notes and the set of values that all these notes share.
+Lattice Bases View adds the layout "Concept lattice" to Obsidian Bases. The layout computes a concept lattice (Formal Concept Analysis) from the values of the properties that you select for the view in the base (the facets). Each concept is a set of notes and the set of values that all these notes share.
 
 ## Supported Obsidian version
 
@@ -21,13 +21,17 @@ pnpm verify   # tsc --noEmit, vitest run, production build of main.js
 pnpm build    # production build of main.js only
 ```
 
-`pnpm verify` runs 12 test files with 141 tests.
+`pnpm verify` runs 12 test files with 156 tests.
 
 ## Installation
 
+From a release: download `main.js`, `manifest.json` and `styles.css` from a GitHub release and put them in `<vault>/.obsidian/plugins/lattice-bases-view/`. The workflow `.github/workflows/release.yml` makes a release when a tag with the version of `manifest.json` is pushed (for example `0.1.0`, without `v`).
+
+From the source:
+
 1. Build `main.js` with `pnpm build`.
-2. Install into the test vault: `pnpm install:vault`. Install into another vault: `pnpm install:vault <vault path>`. The script copies `main.js`, `manifest.json` and `styles.css` to `<vault>/.obsidian/plugins/concept-atlas/`.
-3. In Obsidian, open Settings → Community plugins and enable "Concept Atlas".
+2. Install into the test vault: `pnpm install:vault`. Install into another vault: `pnpm install:vault <vault path>`. The script copies `main.js`, `manifest.json` and `styles.css` to `<vault>/.obsidian/plugins/lattice-bases-view/`.
+3. In Obsidian, open Settings → Community plugins and enable "Lattice Bases View".
 
 ## Usage
 
@@ -55,8 +59,8 @@ View options:
 
 Parts of the view, from left to right: filters, diagram (lattice), notes.
 
-- Panel toggles: the buttons "Filters", "Lattice" and "Notes" at the top right hide or show each panel. A pressed button means that the panel shows. At least one panel stays visible: the button of the last visible panel is disabled. A hidden panel keeps its state: the filter, the focused concept, the search text and the scroll position stay. While the lattice is hidden, the plugin does not draw the diagram; when the lattice shows again, the diagram is drawn and fitted. The plugin stores the three flags per vault on the device (`App.saveLocalStorage`, key `concept-atlas-panels`). Stored data that is not valid gives all panels visible.
-- Column widths: the filters column is 15rem wide and the notes column 17rem by default; the diagram gets the remaining width. Drag the handle at the border of the filters column or of the notes column to change its width. A side column is 10rem wide at least. Its maximum is the width of the view minus the other side column minus the minimum of the diagram (12rem). When the lattice is hidden, the notes column gets the remaining width (10rem at least); when the notes column is hidden too, the filters column gets the full width. A handle shows only between two visible panels when its column has a set width. The handles also take the keyboard focus: ArrowLeft and ArrowRight move the handle by 16 px. Double-click a handle to restore the default width of its column. The plugin stores the two widths per vault on the device (`App.saveLocalStorage`, key `concept-atlas-column-widths`), not in the `.base` file.
+- Panel toggles: the buttons "Filters", "Lattice" and "Notes" at the top right hide or show each panel. A pressed button means that the panel shows. At least one panel stays visible: the button of the last visible panel is disabled. A hidden panel keeps its state: the filter, the focused concept, the search text and the scroll position stay. While the lattice is hidden, the plugin does not draw the diagram; when the lattice shows again, the diagram is drawn and fitted. The plugin stores the three flags per vault on the device (`App.saveLocalStorage`, key `lattice-bases-view-panels`). Stored data that is not valid gives all panels visible.
+- Column widths: the filters column is 15rem wide and the notes column 17rem by default; the diagram gets the remaining width. Drag the handle at the border of the filters column or of the notes column to change its width. A side column is 10rem wide at least. Its maximum is the width of the view minus the other side column minus the minimum of the diagram (12rem). When the lattice is hidden, the notes column gets the remaining width (10rem at least); when the notes column is hidden too, the filters column gets the full width. A handle shows only between two visible panels when its column has a set width. The handles also take the keyboard focus: ArrowLeft and ArrowRight move the handle by 16 px. Double-click a handle to restore the default width of its column. The plugin stores the two widths per vault on the device (`App.saveLocalStorage`, key `lattice-bases-view-column-widths`), not in the `.base` file.
 
 - Filters: one group of check boxes for each facet. Each value shows the number of matching notes. Selected values combine with AND. A value that all matching notes share has the mark "shared by all matching notes". A value that no matching note has is disabled. "Clear filters" removes the selected values, the search text and the focus.
 - Diagram: the concepts below the current filter. Each node shows the values that it adds to the concepts above it, and its number of notes in parentheses, for example `interaction: select (6)`. A node that adds no value is small and shows only its number of notes, for example `(3)`. Point at a node, or move the keyboard focus to it: the diagram marks the node, all concepts above it and the edges between them. The values of the marked concepts together are the values of the node. The focused concept stays marked while the pointer is not on another node. Layout: each edge goes down from a concept to a more specific concept. The number of nodes per layer is limited by the width of the diagram column, so that the diagram fits the width at scale 1 and grows downward. A narrow column gives more layers with fewer nodes. A concept is not always in the layer directly below its upper neighbours, and an edge can pass over layers. The node width follows the longest label of the displayed part (72 to 168 px). When the column width changes enough to change the number of nodes per layer, the diagram is laid out again and fitted. Drag to move the diagram. The mouse wheel scrolls the diagram up and down (Shift+wheel: left and right). Ctrl+wheel, a pinch on a trackpad, or the buttons `+` and `−` zoom. "Fit" and the initial view show the top of the diagram at the top of the view, centered, at the largest scale from 0.7 to 1 at which the width fits. When the width does not fit at 0.7, the top concept is at the top center of the view; drag to see the rest. Click a node, or press Enter or Space on it, to focus it. The arrow keys move the focus to a neighbour node. Escape, or a click on the diagram background, removes the focus. Double-click a node, or press Shift+Enter on it, to filter to its concept (as the link "Filter to these K" in the notes column). The button "Back" in the diagram toolbar goes back to the filter before; a double-click on the top concept (the start node), or Shift+Enter on it, does the same. This works for more than one level. The button is disabled when there is no filter before. A change of a check box and "Clear filters" remove the previous filters. A change of the filter, the focus or the search does not move the diagram.
@@ -90,3 +94,7 @@ The view does not show the properties of a single note. Use the Table layout of 
 - The diagram part is computed on the UI thread for each filter change. While the lattice is hidden, the layout of the diagram is not computed; the displayed concepts are, because the notes column and the filter counts use them.
 - The behavior in Obsidian is tested by hand, not by automated tests. The automated tests cover the FCA core, the Bases adapter with a mock of `obsidian`, and the pure view modules.
 - The detection of error values from Bases is not verified against the Obsidian runtime.
+
+## License
+
+MIT. See `LICENSE`.

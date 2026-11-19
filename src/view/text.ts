@@ -126,5 +126,5 @@ export function noSearchMatchText(search: string): string {
 }
 
 export function errorText(message: string): string {
-  return `Concept Atlas could not show the lattice: ${message}. Check the selected properties in the Properties menu of this base, then reopen the base.`;
+  return `Lattice Bases View could not show the lattice: ${message}. Check the selected properties in the Properties menu of this base, then reopen the base.`;
 }

@@ -2,7 +2,7 @@ import { Notice, Plugin } from 'obsidian';
 import { MAX_CONCEPTS, MAX_NODES, VIEW_TYPE } from './view/config';
 import { ConceptLatticeView } from './view/lattice-view';
 
-export default class ConceptAtlasPlugin extends Plugin {
+export default class LatticeBasesViewPlugin extends Plugin {
   override async onload(): Promise<void> {
     const registered = this.registerBasesView(VIEW_TYPE, {
       name: 'Concept lattice',
@@ -29,6 +29,6 @@ export default class ConceptAtlasPlugin extends Plugin {
         },
       ],
     });
-    if (!registered) new Notice('Concept Atlas: Bases is not enabled. Enable the core plugin Bases to use the Concept lattice layout.');
+    if (!registered) new Notice('Lattice Bases View: Bases is not enabled. Enable the core plugin Bases to use the Concept lattice layout.');
   }
 }

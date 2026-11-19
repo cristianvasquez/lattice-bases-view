@@ -1,5 +1,5 @@
 {
-  "name": "concept-atlas",
+  "name": "lattice-bases-view",
   "version": "0.1.0",
   "private": true,
   "description": "Obsidian plugin: a Concept lattice layout for Bases (Formal Concept Analysis over note properties).",

@@ -7,7 +7,7 @@ export type PanelVisibility = Record<Panel, boolean>;
 /** The panels from left to right. */
 export const PANELS: readonly Panel[] = ['filters', 'lattice', 'notes'];
 /** The key of the stored visibility flags (`App.saveLocalStorage`, per vault). */
-export const PANELS_KEY = 'concept-atlas-panels';
+export const PANELS_KEY = 'lattice-bases-view-panels';
 
 export function allVisible(): PanelVisibility {
   return { filters: true, lattice: true, notes: true };
