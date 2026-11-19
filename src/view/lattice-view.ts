@@ -130,6 +130,10 @@ export class ConceptLatticeView extends BasesView {
     });
     observer.observe(this.root);
     this.register(() => observer.disconnect());
+    // The selection panel changes the height of the viewport, not the size of the root.
+    const viewportObserver = new ResizeObserver(() => this.diagram.resized());
+    viewportObserver.observe(this.diagram.viewport);
+    this.register(() => viewportObserver.disconnect());
     this.register(() => this.cancelLattice());
   }
 
@@ -245,9 +249,10 @@ export class ConceptLatticeView extends BasesView {
     if (partChanged) keepFocus(this.groupsEl, ['data-attribute'], () => this.renderFilters());
     this.renderStatus();
     this.renderWarnings();
+    // Before the diagram: the panel changes the viewport height, and the fit in diagram.render() measures it.
+    keepFocus(this.selectionEl, ['data-path', 'data-action'], () => this.renderSelection());
     if (ok && partChanged) this.diagram.render(model, domFocus);
     else if (ok) this.diagram.setFocus(model.focusIndex, domFocus);
-    keepFocus(this.selectionEl, ['data-path', 'data-action'], () => this.renderSelection());
   }
 
   private renderStatus(): void {
