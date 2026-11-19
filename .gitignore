@@ -3,3 +3,4 @@ node_modules/
 main.js
 test-vault/.obsidian/plugins/
 test-vault/.obsidian/workspace*.json
+.claude/
