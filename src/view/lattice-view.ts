@@ -1,9 +1,9 @@
 // The Bases view "Concept lattice". DOM code. The logic is in the pure modules state.ts, model.ts, layout.ts and text.ts.
 import { BasesView, Keymap, type QueryController, setIcon } from 'obsidian';
-import { type AtlasData, buildAtlasData, resolveFacets } from '../bases';
+import { type AtlasData, buildAtlasData } from '../bases';
 import { type FormalContext, buildLattice } from '../fca';
 import { COLUMN_WIDTHS_KEY, type ColumnWidths, type Side, columnRange, defaultWidth, fitWidths, readStoredWidths, setColumn, stepColumn } from './columns';
-import { VIEW_TYPE, readViewConfig } from './config';
+import { VIEW_TYPE, readViewConfig, viewFacets } from './config';
 import { Diagram } from './diagram';
 import { maxNodesPerLayer } from './layout';
 import { type DisplayModel, buildModel, contextOf, neighbourFor, nodeNotePaths } from './model';
@@ -215,7 +215,13 @@ export class ConceptLatticeView extends BasesView {
     this.cancelLattice();
     try {
       const config = readViewConfig((key) => this.config.get(key));
-      const resolved = resolveFacets(config.facets, this.allProperties ?? []);
+      // The facets are the properties that the user selected in the Properties menu of the base.
+      const resolved = viewFacets({
+        order: this.config.getOrder(),
+        displayName: (id) => this.config.getDisplayName(id),
+        legacy: this.config.get('facets'),
+        allProperties: this.allProperties ?? [],
+      });
       const data = buildAtlasData(this.data.data, resolved.facets);
       const ctx = contextOf(data);
       this.model = null;
@@ -507,7 +513,7 @@ export class ConceptLatticeView extends BasesView {
     if (!model || model.kind !== 'ok') return;
     for (const group of model.groups) {
       const fieldset = this.groupsEl.createEl('fieldset', { cls: 'concept-atlas-group' });
-      fieldset.createEl('legend', { text: group.facet });
+      fieldset.createEl('legend', { text: group.name });
       for (const value of group.values) {
         const label = fieldset.createEl('label', { cls: 'concept-atlas-value' });
         label.toggleClass('is-disabled', value.disabled);

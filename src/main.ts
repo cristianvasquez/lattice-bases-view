@@ -1,5 +1,4 @@
 import { Notice, Plugin } from 'obsidian';
-import { DEFAULT_FACETS } from './bases';
 import { MAX_CONCEPTS, MAX_NODES, VIEW_TYPE } from './view/config';
 import { ConceptLatticeView } from './view/lattice-view';
 
@@ -10,7 +9,6 @@ export default class ConceptAtlasPlugin extends Plugin {
       icon: 'network',
       factory: (controller, containerEl) => new ConceptLatticeView(controller, containerEl),
       options: () => [
-        { type: 'multitext', key: 'facets', displayName: 'Facet properties', default: [...DEFAULT_FACETS] },
         {
           type: 'slider',
           key: 'maxConcepts',

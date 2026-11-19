@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_FACETS, resolveFacets } from '../src/bases';
+import { facetsFromProperties, resolveFacets } from '../src/bases';
 
 describe('resolveFacets', () => {
-  it('has the default facets', () => {
-    expect(DEFAULT_FACETS).toEqual(['structure', 'data', 'task', 'interaction']);
-  });
-
   it('keeps an input with a type prefix as the property id', () => {
     const { facets, warnings } = resolveFacets(['note.data', 'formula.score', 'file.folder'], []);
     expect(facets).toEqual([
@@ -39,5 +35,50 @@ describe('resolveFacets', () => {
     const { facets, warnings } = resolveFacets(['  structure ', '', '   '], []);
     expect(facets).toEqual([{ key: 'structure', propertyId: 'note.structure' }]);
     expect(warnings).toEqual([]);
+  });
+});
+
+describe('facetsFromProperties', () => {
+  it('keeps the selected properties in order, without the properties that identify one note', () => {
+    const { facets, warnings } = facetsFromProperties([
+      'file.name',
+      'note.structure',
+      'file.basename',
+      'file.folder',
+      'file.path',
+      'formula.score',
+      'file.file',
+      'file.tags',
+      'file.links',
+    ]);
+    expect(facets).toEqual([
+      { key: 'structure', propertyId: 'note.structure' },
+      { key: 'folder', propertyId: 'file.folder' },
+      { key: 'score', propertyId: 'formula.score' },
+      { key: 'tags', propertyId: 'file.tags' },
+      { key: 'links', propertyId: 'file.links' },
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('gives the display name, and no name when the display name is empty', () => {
+    const names: Record<string, string> = { 'note.data': 'Data type', 'file.folder': '  ' };
+    const { facets } = facetsFromProperties(['note.data', 'file.folder'], (id) => names[id] ?? id);
+    expect(facets).toEqual([
+      { key: 'data', propertyId: 'note.data', name: 'Data type' },
+      { key: 'folder', propertyId: 'file.folder' },
+    ]);
+  });
+
+  it('keeps the first property when two properties give the same key, with a warning', () => {
+    const { facets, warnings } = facetsFromProperties(['note.data', 'formula.data']);
+    expect(facets).toEqual([{ key: 'data', propertyId: 'note.data' }]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('formula.data');
+  });
+
+  it('gives no facet when only properties that identify one note are selected', () => {
+    expect(facetsFromProperties(['file.name', 'file.path'])).toEqual({ facets: [], warnings: [] });
+    expect(facetsFromProperties([])).toEqual({ facets: [], warnings: [] });
   });
 });

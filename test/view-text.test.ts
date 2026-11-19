@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_FACETS } from '../src/bases';
-import { readViewConfig } from '../src/view/config';
+import { readLegacyFacets, readViewConfig, viewFacets } from '../src/view/config';
 import { displayLabels, shortPathLabels } from '../src/view/text';
-import { EXPLANATION, HIGHLIGHT_HINT, NO_FILTER_MATCH_TEXT, filterToText, focusCountText, fullLatticeText, noValuesText, notesCountText, shorten, shownText } from '../src/view/text';
+import { EXPLANATION, HIGHLIGHT_HINT, NO_FACETS_TEXT, NO_FILTER_MATCH_TEXT, errorText, filterToText, focusCountText, fullLatticeText, noValuesText, notesCountText, shorten, shownText } from '../src/view/text';
 
 describe('status text', () => {
   it('separates the full lattice from the displayed part', () => {
@@ -17,6 +16,17 @@ describe('status text', () => {
     expect(noValuesText(['structure', 'data'])).toContain('"structure", "data"');
     for (const text of [EXPLANATION, noValuesText(['x']), noValuesText([])]) expect(text).not.toMatch(/does not have/i);
     expect(EXPLANATION).toContain("not annotated");
+  });
+
+  it('asks for selected properties when no facet is usable, and never names the removed option', () => {
+    expect(noValuesText([])).toBe(
+      'Select the properties to compare in the Properties menu of this base. The Concept lattice groups the notes by the values of these properties.',
+    );
+    expect(noValuesText([])).toBe(NO_FACETS_TEXT);
+    for (const text of [noValuesText([]), noValuesText(['x']), errorText('boom')]) {
+      expect(text).toContain('Properties menu');
+      expect(text).not.toContain('Facet properties');
+    }
   });
 
   it('gives the reading rule of the highlight', () => {
@@ -52,9 +62,43 @@ describe('notes column text', () => {
 
 describe('readViewConfig', () => {
   it('gives the defaults for missing values and clamps numbers', () => {
-    expect(readViewConfig(() => undefined)).toEqual({ facets: [...DEFAULT_FACETS], maxConcepts: 5000, maxNodes: 20 });
+    expect(readViewConfig(() => undefined)).toEqual({ maxConcepts: 5000, maxNodes: 20 });
     const values: Record<string, unknown> = { facets: ['task', 'formula.kind'], maxConcepts: 999999, maxNodes: '3' };
-    expect(readViewConfig((k) => values[k])).toEqual({ facets: ['task', 'formula.kind'], maxConcepts: 20000, maxNodes: 10 });
+    expect(readViewConfig((k) => values[k])).toEqual({ maxConcepts: 20000, maxNodes: 10 });
+  });
+});
+
+describe('readLegacyFacets', () => {
+  it('reads a list or a comma-separated text, else gives an empty list', () => {
+    expect(readLegacyFacets(['task', 3, 'formula.kind'])).toEqual(['task', 'formula.kind']);
+    expect(readLegacyFacets(' task, data ,,')).toEqual(['task', 'data']);
+    expect(readLegacyFacets(undefined)).toEqual([]);
+    expect(readLegacyFacets(null)).toEqual([]);
+    expect(readLegacyFacets(5)).toEqual([]);
+  });
+});
+
+describe('viewFacets', () => {
+  const displayName = (id: string) => id.slice(id.indexOf('.') + 1).toUpperCase();
+
+  it('uses the selected properties with their display names and ignores the earlier option', () => {
+    const { facets } = viewFacets({ order: ['file.name', 'note.task', 'file.folder'], displayName, legacy: ['data'], allProperties: [] });
+    expect(facets).toEqual([
+      { key: 'task', propertyId: 'note.task', name: 'TASK' },
+      { key: 'folder', propertyId: 'file.folder', name: 'FOLDER' },
+    ]);
+  });
+
+  it('uses the stored option of an earlier version when no selected property is usable', () => {
+    const { facets } = viewFacets({ order: ['file.name'], displayName, legacy: ['data', 'score'], allProperties: ['formula.score'] });
+    expect(facets).toEqual([
+      { key: 'data', propertyId: 'note.data' },
+      { key: 'score', propertyId: 'formula.score' },
+    ]);
+  });
+
+  it('gives no facet when no property is selected and there is no earlier option', () => {
+    expect(viewFacets({ order: [], displayName, legacy: undefined, allProperties: ['note.data'] })).toEqual({ facets: [], warnings: [] });
   });
 });
 

@@ -397,6 +397,22 @@ describe('empty states', () => {
   });
 });
 
+describe('facet display names', () => {
+  it('uses the display name in the group heading, the node labels and the no-values model; the attribute ids keep the key', () => {
+    const named = facets.map((f) => (f.key === 'structure' ? { ...f, name: 'Shape' } : f));
+    const data = buildAtlasData([entry('T/Arc.md', { 'note.structure': s('tree') }), entry('T/Dot.md', { 'note.data': s('network') })], named);
+    const m = model(initialState(), data);
+    expect(m.groups.map((g) => [g.facet, g.name])).toEqual([
+      ['structure', 'Shape'],
+      ['data', 'data'],
+      ['task', 'task'],
+    ]);
+    expect(m.groups[0]!.values.map((v) => v.id)).toEqual(['structure:tree']);
+    expect(m.nodes.map((n) => n.label)).toContain('Shape: tree (1)');
+    expect(model(initialState(), buildAtlasData([entry('T/Arc.md', {})], named)).facets).toEqual(['Shape', 'data', 'task']);
+  });
+});
+
 describe('diagram part cache', () => {
   it('uses the part again for a search or focus change and computes a new part for a filter change', () => {
     const data = sample();

@@ -4,6 +4,11 @@ filters:
 views:
   - type: concept-lattice
     name: Concept lattice
+    order:
+      - structure
+      - data
+      - task
+      - interaction
   - type: table
     name: Table
     order:

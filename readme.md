@@ -7,7 +7,7 @@ tags: [repo/pkm]
 
 ## What it does
 
-Concept Atlas adds the layout "Concept lattice" to Obsidian Bases. The layout computes a concept lattice (Formal Concept Analysis) from the values of the facet properties of the notes in the base. Each concept is a set of notes and the set of values that all these notes share.
+Concept Atlas adds the layout "Concept lattice" to Obsidian Bases. The layout computes a concept lattice (Formal Concept Analysis) from the values of the properties that you select for the view in the base (the facets). Each concept is a set of notes and the set of values that all these notes share.
 
 ## Supported Obsidian version
 
@@ -21,7 +21,7 @@ pnpm verify   # tsc --noEmit, vitest run, production build of main.js
 pnpm build    # production build of main.js only
 ```
 
-`pnpm verify` runs 12 test files with 118 tests.
+`pnpm verify` runs 12 test files with 141 tests.
 
 ## Installation
 
@@ -33,11 +33,22 @@ pnpm build    # production build of main.js only
 
 Open a base. Add a view and select the layout "Concept lattice". The view uses only the notes that the filters and formulas of the base give.
 
+Facets: select the properties to compare in the Properties menu of the view (the same menu that sets the columns of the Table layout). Each selected property is a facet, in the order of the menu. The heading of a facet group and the facet name in node labels are the display name of the property in the base. When no usable property is selected, the view shows: "Select the properties to compare in the Properties menu of this base. The Concept lattice groups the notes by the values of these properties." When you change the selected properties, the view draws again, and the filter keeps only the values of the properties that are still selected.
+
+- Note properties, for example `structure`, `data`, `task`, `interaction` in the sample vault.
+- File properties: `file.folder` (the folder of the note), `file.tags` (the tags), `file.links` (the links in the note).
+- Formulas of the base.
+- The plugin ignores the properties that identify one note: `file.name`, `file.basename`, `file.path`, `file.file`. They give one value per note and no shared concept.
+- Two selected properties with the same name without the type prefix (for example `note.score` and `formula.score`) give the same facet key. The view uses the first one and shows a warning.
+
+In the `.base` file, the selected properties are the key `order` of the view.
+
+Removed option: the view options do not have the earlier option for facets (key `facets`). When a view has no usable selected property and its stored config has a `facets` list (a base made with an earlier version), the view uses that list.
+
 View options:
 
 | Option | Default | Range | Function |
 | --- | --- | --- | --- |
-| Facet properties | `structure`, `data`, `task`, `interaction` | | The properties that give the values. A name without a prefix is a note property, or a formula when only a formula with that name exists. You can also write `note.`, `formula.` or `file.` before the name. |
 | Concept budget (full lattice) | 5000 | 500 to 20000, step 500 | The maximum number of concepts that the plugin computes for the full lattice. |
 | Concepts in the diagram | 20 | 10 to 150, step 5 | The maximum number of concepts in the diagram. |
 
@@ -64,7 +75,7 @@ The view does not show the properties of a single note. Use the Table layout of 
 
 ## Sample vault
 
-`test-vault/` has 14 notes about visualization techniques in `Techniques/`, with list properties `structure`, `data`, `task` and `interaction`. Some notes do not have values for all facets. `Visualization techniques.base` shows the notes of `Techniques/` with the layout "Concept lattice" and as a table. `Not a technique.md` is outside `Techniques/`, so the filter of the base excludes it.
+`test-vault/` has 14 notes about visualization techniques in `Techniques/`, with list properties `structure`, `data`, `task` and `interaction`. Some notes do not have values for all facets. `Visualization techniques.base` shows the notes of `Techniques/` with the layout "Concept lattice" (selected properties `structure`, `data`, `task`, `interaction`) and as a table. `Not a technique.md` is outside `Techniques/`, so the filter of the base excludes it.
 
 ## Limitations
 

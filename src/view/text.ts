@@ -111,10 +111,14 @@ export function noEntriesText(): string {
   return 'Bases gives no notes to this view. Change the filters of the base so that it includes notes.';
 }
 
+/** The empty state when no selected property is usable as a facet. */
+export const NO_FACETS_TEXT =
+  'Select the properties to compare in the Properties menu of this base. The Concept lattice groups the notes by the values of these properties.';
+
 export function noValuesText(facets: readonly string[]): string {
-  if (facets.length === 0) return 'No facet property is configured. Add facet properties in the view options ("Facet properties").';
+  if (facets.length === 0) return NO_FACETS_TEXT;
   const names = facets.map((f) => `"${f}"`).join(', ');
-  return `No note in this base has a value for the configured facets ${names}. Add values to these properties in the notes, or change "Facet properties" in the view options.`;
+  return `No note in this base has a value for the selected properties ${names}. Add values to these properties in the notes, or select other properties in the Properties menu of this base.`;
 }
 
 export function noSearchMatchText(search: string): string {
@@ -122,5 +126,5 @@ export function noSearchMatchText(search: string): string {
 }
 
 export function errorText(message: string): string {
-  return `Concept Atlas could not show the lattice: ${message}. Check "Facet properties" in the view options, then reopen the base.`;
+  return `Concept Atlas could not show the lattice: ${message}. Check the selected properties in the Properties menu of this base, then reopen the base.`;
 }

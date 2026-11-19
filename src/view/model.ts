@@ -34,6 +34,8 @@ export interface FilterValue {
 
 export interface FilterGroup {
   facet: string;
+  /** Display name of the facet. */
+  name: string;
   values: FilterValue[];
 }
 
@@ -93,6 +95,7 @@ export interface DisplayModel {
   kind: ModelKind;
   /** The state after the removal of ids that are not in the data or not displayed. */
   state: ViewState;
+  /** Display names of the facets. */
   facets: string[];
   totalNotes: number;
   /** The cacheable part (filter groups, displayed lattice, layout). `null` for an empty state. */
@@ -135,6 +138,11 @@ function intentKey(ids: readonly string[]): string {
   return [...ids].sort().join('\u0000');
 }
 
+/** The display name of a facet: its name, else its key. */
+export function facetName(facet: { key: string; name?: string }): string {
+  return facet.name ?? facet.key;
+}
+
 /** Filter groups: one per facet, one value per attribute, with the count of matching notes if the value is added to the filter. */
 export function filterGroups(data: AtlasData, ctx: FormalContext, selected: readonly string[], current: Concept): FilterGroup[] {
   const selectedSet = new Set(selected);
@@ -143,6 +151,7 @@ export function filterGroups(data: AtlasData, ctx: FormalContext, selected: read
   const display = displayLabels(data.attributes);
   return data.facets.map((facet) => ({
     facet: facet.key,
+    name: facetName(facet),
     values: data.attributes
       .filter((a) => a.facet === facet.key)
       .map((a) => {
@@ -198,7 +207,8 @@ export function partKey(selected: readonly string[], maxNodes: number): string {
 /** Computes the filter groups, the displayed part of the lattice and its layout. Needs at least one object and one attribute. */
 export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedIds: readonly string[], maxNodes: number): DiagramPart {
   const display = displayLabels(data.attributes);
-  const labelOf = new Map(data.attributes.map((a) => [a.id, valueText(a.facet, display.get(a.id) ?? a.label)]));
+  const nameOf = new Map(data.facets.map((f) => [f.key, facetName(f)]));
+  const labelOf = new Map(data.attributes.map((a) => [a.id, valueText(nameOf.get(a.facet) ?? a.facet, display.get(a.id) ?? a.label)]));
   const selected = selectedIds.filter((id) => ctx.attributeIndex.has(id));
   const current = conceptOfAttributes(ctx, attributeSet(ctx, selected));
   const filterActive = selected.length > 0;
@@ -260,7 +270,7 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
 
 /** Builds the display model. `ctx` must be `contextOf(data)`. */
 export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState, options: ModelOptions): DisplayModel {
-  const facets = data.facets.map((f) => f.key);
+  const facets = data.facets.map(facetName);
 
   if (data.objects.length === 0 || data.attributes.length === 0) {
     return {
