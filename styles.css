@@ -189,9 +189,10 @@
 }
 
 .concept-atlas .concept-atlas-value {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  /* Check box, label, count in one row. A long label wraps inside its own cell. */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
   gap: var(--size-4-1);
   padding: var(--size-2-1) 0;
   cursor: pointer;
@@ -203,7 +204,8 @@
 }
 
 .concept-atlas .concept-atlas-value-label {
-  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .concept-atlas .concept-atlas-value-count {
@@ -212,8 +214,7 @@
 }
 
 .concept-atlas .concept-atlas-value-shared {
-  flex-basis: 100%;
-  padding-left: var(--size-4-5);
+  grid-column: 2 / -1;
   color: var(--text-accent);
   font-size: var(--font-ui-smaller);
 }

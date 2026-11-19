@@ -45,6 +45,38 @@ export function shorten(text: string, max: number): string {
   return `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
 }
 
+/**
+ * Display labels for the values of one facet. When all values are paths with the same leading folders
+ * (for example the values of `file.folder`), the common folders are removed: `a/b/c` and `a/b/d` give `c` and `d`.
+ * A value that is equal to the common part gives its last folder with `/` at the end. Other label sets are returned as given.
+ */
+export function shortPathLabels(labels: readonly string[]): string[] {
+  if (labels.length < 2 || !labels.some((l) => l.includes('/'))) return [...labels];
+  const parts = labels.map((l) => l.split('/'));
+  let common = 0;
+  const first = parts[0]!;
+  while (common < first.length && parts.every((p) => p.length > common && p[common] === first[common])) common++;
+  if (common === 0) return [...labels];
+  const short = parts.map((p) => (p.length === common ? `${p[common - 1]}/` : p.slice(common).join('/')));
+  return new Set(short).size === short.length ? short : [...labels];
+}
+
+/** Display label of each attribute id: the label of the attribute, with common leading folders removed per facet. */
+export function displayLabels(attributes: readonly { id: string; facet: string; label: string }[]): Map<string, string> {
+  const byFacet = new Map<string, { id: string; label: string }[]>();
+  for (const a of attributes) {
+    const list = byFacet.get(a.facet) ?? [];
+    list.push(a);
+    byFacet.set(a.facet, list);
+  }
+  const result = new Map<string, string>();
+  for (const list of byFacet.values()) {
+    const short = shortPathLabels(list.map((a) => a.label));
+    list.forEach((a, i) => result.set(a.id, short[i]!));
+  }
+  return result;
+}
+
 export function valueText(facet: string, label: string): string {
   return `${facet}: ${label}`;
 }

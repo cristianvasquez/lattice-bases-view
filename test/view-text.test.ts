@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_FACETS } from '../src/bases';
 import { readViewConfig } from '../src/view/config';
+import { displayLabels, shortPathLabels } from '../src/view/text';
 import { EXPLANATION, HIGHLIGHT_HINT, NO_FILTER_MATCH_TEXT, filterToText, focusCountText, fullLatticeText, noValuesText, notesCountText, shorten, shownText } from '../src/view/text';
 
 describe('status text', () => {
@@ -54,5 +55,29 @@ describe('readViewConfig', () => {
     expect(readViewConfig(() => undefined)).toEqual({ facets: [...DEFAULT_FACETS], maxConcepts: 5000, maxNodes: 20 });
     const values: Record<string, unknown> = { facets: ['task', 'formula.kind'], maxConcepts: 999999, maxNodes: '3' };
     expect(readViewConfig((k) => values[k])).toEqual({ facets: ['task', 'formula.kind'], maxConcepts: 20000, maxNodes: 10 });
+  });
+});
+
+describe('short path labels', () => {
+  it('removes the common leading folders', () => {
+    expect(shortPathLabels(['a/b', 'a/b/c', 'a/b/d e'])).toEqual(['b/', 'c', 'd e']);
+    expect(shortPathLabels(['x/one', 'x/two'])).toEqual(['one', 'two']);
+  });
+  it('keeps labels that are not paths, single labels and labels with no common folder', () => {
+    expect(shortPathLabels(['tree', 'graph'])).toEqual(['tree', 'graph']);
+    expect(shortPathLabels(['a/b'])).toEqual(['a/b']);
+    expect(shortPathLabels(['a/b', 'c/d'])).toEqual(['a/b', 'c/d']);
+    expect(shortPathLabels(['a/b', 'tree'])).toEqual(['a/b', 'tree']);
+  });
+  it('keeps the labels when the short labels are not unique', () => {
+    expect(shortPathLabels(['a/b', 'a/b/b/'])).toEqual(['a/b', 'a/b/b/']);
+  });
+  it('works per facet', () => {
+    const m = displayLabels([
+      { id: 'folder:a/b/c', facet: 'folder', label: 'a/b/c' },
+      { id: 'folder:a/b/d', facet: 'folder', label: 'a/b/d' },
+      { id: 'tags:a/b', facet: 'tags', label: 'a/b' },
+    ]);
+    expect([...m.values()]).toEqual(['c', 'd', 'a/b']);
   });
 });

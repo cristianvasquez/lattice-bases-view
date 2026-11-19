@@ -515,7 +515,7 @@ export class ConceptLatticeView extends BasesView {
         const box = label.createEl('input', { type: 'checkbox', attr: { 'data-attribute': value.id } });
         box.checked = value.selected;
         box.disabled = value.disabled;
-        label.createSpan({ cls: 'concept-atlas-value-label', text: value.label });
+        label.createSpan({ cls: 'concept-atlas-value-label', text: value.label, attr: { title: value.fullLabel } });
         label.createSpan({ cls: 'concept-atlas-value-count', text: String(value.count), attr: { 'aria-label': notesText(value.count) } });
         if (value.shared) label.createSpan({ cls: 'concept-atlas-value-shared', text: 'shared by all matching notes' });
       }

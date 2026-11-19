@@ -13,13 +13,16 @@ import {
 } from '../fca';
 import { DEFAULT_LAYOUT, type Layout, layoutDiagram, maxNodesPerLayer, nodeWidthFor } from './layout';
 import type { ViewState } from './state';
-import { ZERO_SUPPORT_TEXT, countText, notesText, shorten, valueText } from './text';
+import { ZERO_SUPPORT_TEXT, countText, displayLabels, notesText, shorten, valueText } from './text';
 
 export const LABEL_MAX = 24;
 
 export interface FilterValue {
   id: string;
+  /** Display label. Common leading folders of the facet are removed. */
   label: string;
+  /** The value as recorded. */
+  fullLabel: string;
   /** Number of matching notes if this value is added to the current filter. */
   count: number;
   selected: boolean;
@@ -137,6 +140,7 @@ export function filterGroups(data: AtlasData, ctx: FormalContext, selected: read
   const selectedSet = new Set(selected);
   // With support 0, B'' is the set of all attributes. "Shared by all matching notes" would then be true only because no note matches.
   const intent = new Set(current.support > 0 ? attributeIds(ctx, current.intent) : []);
+  const display = displayLabels(data.attributes);
   return data.facets.map((facet) => ({
     facet: facet.key,
     values: data.attributes
@@ -147,7 +151,8 @@ export function filterGroups(data: AtlasData, ctx: FormalContext, selected: read
         const isSelected = selectedSet.has(a.id);
         return {
           id: a.id,
-          label: a.label,
+          label: display.get(a.id) ?? a.label,
+          fullLabel: a.label,
           count,
           selected: isSelected,
           disabled: count === 0 && !isSelected,
@@ -192,7 +197,8 @@ export function partKey(selected: readonly string[], maxNodes: number): string {
 
 /** Computes the filter groups, the displayed part of the lattice and its layout. Needs at least one object and one attribute. */
 export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedIds: readonly string[], maxNodes: number): DiagramPart {
-  const labelOf = new Map(data.attributes.map((a) => [a.id, valueText(a.facet, a.label)]));
+  const display = displayLabels(data.attributes);
+  const labelOf = new Map(data.attributes.map((a) => [a.id, valueText(a.facet, display.get(a.id) ?? a.label)]));
   const selected = selectedIds.filter((id) => ctx.attributeIndex.has(id));
   const current = conceptOfAttributes(ctx, attributeSet(ctx, selected));
   const filterActive = selected.length > 0;
