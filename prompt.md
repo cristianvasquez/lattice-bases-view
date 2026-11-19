@@ -1,70 +1,56 @@
-Build a complete Obsidian plugin called **Concept Atlas** that adds a **Concept lattice** layout to Obsidian Bases. Deliver the full editable codebase and a working build, not just a mockup or implementation plan.
+# Build Concept Atlas for Obsidian Bases
 
-**My use case**
+Build **Concept Atlas**, an Obsidian plugin that adds a **Concept lattice** view to Bases. Deliver the editable TypeScript project and a working production build.
 
-I have hundreds of Markdown notes about visualization techniques, with text and list properties such as:
+## What I’m using it for
 
-- structure: tree, dag, graph, matrix, canvas
-- data: network, quantitative, categorical, temporal, hierarchical, text
-- task: overview, compare, relationship, flow, navigate, distribution
-- interaction: zoom, select, filter, brush
+I have hundreds of Markdown notes about visualization techniques. I want to explore which techniques share attributes and drill down into more specific combinations. My notes use properties like these:
 
-Properties are NOT exclusive. A technique can have multiple values within each facet. Missing properties mean unannotated, not confirmed false.
+| Property | Example values |
+|---|---|
+| `structure` | tree, dag, graph, matrix, canvas |
+| `data` | network, quantitative, categorical, temporal, hierarchical, text |
+| `task` | overview, compare, relationship, flow, navigate, distribution |
+| `interaction` | zoom, select, filter, brush |
 
-The browser prototype is a visual reference:
-https://visualization-concept-atlas.cristianvasque443217.chatgpt.site
+A technique can have several values in the same property. A missing property means I haven’t annotated that facet.
 
-Do not depend on access to that site or its source. Build a self-contained plugin.
+Use [my browser prototype](https://visualization-concept-atlas.cristianvasque443217.chatgpt.site) as a visual reference if it’s accessible. The plugin must work independently of the site and its source.
 
-**Bases integration**
+## Bases integration
 
-Check the current official Obsidian documentation and installed TypeScript API before implementing:
-https://docs.obsidian.md/plugins/guides/bases-view
+Before implementing, check the [official Bases view guide](https://docs.obsidian.md/plugins/guides/bases-view) and the installed Obsidian TypeScript declarations. Use the supported custom view API, including `registerBasesView`, `BasesView`, and `onDataUpdated`.
 
-Use the supported custom Bases view API: registerBasesView, BasesView, onDataUpdated, and evaluated entry values. Work from the entries supplied by Bases so its filters and formulas are respected. Do not parse a .base file as though it contains the note data.
+Build the lattice from the entries and evaluated values supplied to the view so it respects Bases filters and formulas. Use the `.base` file for view configuration. Let me choose which note properties or formulas become facets, with `structure`, `data`, `task`, and `interaction` selected by default. Treat each list value as a separate attribute, such as `data:network` and `data:quantitative`. Use the vault-relative file path as the object ID.
 
-Let me configure which note or formula properties become lattice facets. Default to structure, data, task, and interaction. Preserve list values as separate attributes, for example data:network and data:quantitative. Use stable file paths as object identities.
+## The view
 
-**Interface**
+- Show attribute values as checkboxes. Combine selections with AND and provide a clear-filters action.
+- Draw general concepts above specific ones. Keep the initial diagram manageable with local navigation or a bounded overview. Make it clear when the diagram shows only part of the lattice.
+- When I select a concept, show its shared attributes and matching notes. Let me inspect a technique’s recorded values and see which facets are unannotated.
+- Let me search by note name and open the actual Markdown file from the results or inspector.
+- Use Obsidian theme variables and scope styles to the plugin. Make controls and concepts keyboard operable, handle pane resizing, and show useful messages for empty results and errors.
 
-Create a working exploration surface inside Bases:
+Add a short explanation in the view that the lattice shows patterns in recorded annotations. An unannotated facet provides no negative evidence, and an implication observed in these notes may not hold outside them.
 
-1. Checkbox filters for property values. Multiple selections mean AND.
-2. A layered concept diagram: general above, specific below.
-3. Clickable concepts showing shared properties and matching notes.
-4. A technique inspector showing recorded properties and unannotated facets.
-5. Note links that open the actual Markdown file.
-6. Search by note name, clear filters, and useful empty/error states.
+## Formal concept analysis
 
-Use Obsidian theme variables and scope all styles to the plugin. Support keyboard interaction and resizing. Keep the initial view manageable through local concept navigation or a clearly bounded overview.
+Keep the FCA engine independent of the UI. Implement object-to-attribute and attribute-to-object derivation, closure, concept enumeration with Next Closure or an equivalent algorithm, and Hasse cover relations. Test against small contexts with known closures, concepts, and cover edges. Include cases for an empty object set and a bottom concept with zero supporting notes.
 
-**FCA engine**
+Set explicit computation budgets and keep enumeration and cover computation off the UI thread or split into cancellable work. Cancel stale work when inputs change and release workers, listeners, and other resources when the view unloads. If a budget is reached, label the result as partial. Distinguish the mathematical lattice for the current context from any subset shown in the diagram.
 
-Implement a UI-independent TypeScript module for object/attribute derivation, closure, concept enumeration, and Hasse cover relations. Use a correct algorithm such as Next Closure; verify it on small known contexts.
+Keep the plugin local. It needs no external server, telemetry, or AI extraction.
 
-The lattice represents confirmed recorded attributes. Do not present empirical closures as guaranteed real-world implications. Do not treat a missing annotation as negative evidence. Explain this distinction briefly in the interface.
+## Deliverables and verification
 
-Handle the empty object set and zero-support bottom concept correctly. Distinguish the full mathematical lattice from any filtered or partial display.
+Inspect the workspace and choose a project directory. Keep installation and runtime testing in a separate test vault so my existing notes stay untouched.
 
-Protect against concept explosion: use explicit budgets, cancellation or a worker where appropriate, and clear partial-result messaging. Never freeze Obsidian while enumerating. Clean up workers, listeners, and other resources when the view unloads.
+Include:
 
-No external server, telemetry, or AI extraction is needed for this first version. Keep data and computation local.
+- TypeScript source organized into the FCA core, Bases adapter, and view.
+- `package.json`, a lockfile, TypeScript and build configuration, `manifest.json`, `styles.css`, and a production `main.js`.
+- A README covering build, installation, usage, minimum supported Obsidian version, and limitations.
+- A sample `.base` file and 10–15 visualization notes with overlapping list values and some unannotated facets.
+- FCA tests and maintainer instructions for building, testing, and extending the plugin.
 
-**Deliverables**
-
-Create a normal TypeScript project with:
-
-- Full source code, organized into FCA core, Bases adapter, and view.
-- package.json, lockfile, TypeScript and build configuration.
-- manifest.json and styles.css.
-- Production main.js build.
-- README with build, installation, usage, supported Obsidian version, and limitations.
-- A sample .base file and 10–15 visualization notes with overlapping list properties and missing annotations.
-- Meaningful FCA tests, including closure identities, known concepts, and cover edges.
-- Instructions for future agents to build, test, and extend the project.
-
-Inspect the available workspace and choose a suitable project directory. Develop and install in a separate test vault; do not modify my existing notes.
-
-Build and run the relevant tests. If you can interact with Obsidian, test the custom layout, property updates, filters, list values, and note opening. Otherwise clearly distinguish verified checks from runtime checks I still need to perform.
-
-Proceed with reasonable implementation decisions. Finish the codebase, then report its location, installation steps, validation results, and remaining limitations.
+Run the production build and tests. If Obsidian is available, install the plugin in the test vault and check that the custom view loads, property edits refresh the lattice, list values stay separate, filters work, and note links open the right files. In the handoff, give me the project location and installation steps, list the checks you ran, and identify any runtime checks still pending or limitations I’ll encounter.

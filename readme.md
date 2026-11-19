@@ -95,6 +95,10 @@ The view does not show the properties of a single note. Use the Table layout of 
 - The behavior in Obsidian is tested by hand, not by automated tests. The automated tests cover the FCA core, the Bases adapter with a mock of `obsidian`, and the pure view modules.
 - The detection of error values from Bases is not verified against the Obsidian runtime.
 
+## How it was made
+
+An AI model wrote the code of this plugin: Claude Opus (Anthropic), from the prompt in [`prompt.md`](prompt.md). Cristian Vasquez wrote the prompt and directed the later changes, which AI coding agents also made. The prompt uses the first name of the plugin, Concept Atlas.
+
 ## License
 
 MIT. See `LICENSE`.
