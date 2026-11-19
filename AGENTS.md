@@ -56,4 +56,11 @@ The runtime behavior in Obsidian has no automated tests. Do these steps by hand 
 7. Type in the search field. Make sure that only the note lists change.
 8. Change a property value of a note in `Techniques/`. Make sure that the view updates.
 9. Change the three view options. Make sure that the view uses the new values.
-10. Close the view while the lattice computes. Make sure that no error shows in the developer console.
+10. Make the view narrower than 700 px. Make sure that the three regions stack and do not overlap.
+11. Close the view while the lattice computes. Make sure that no error shows in the developer console.
+
+An agent can do these steps with the Obsidian CLI when the app runs with `test-vault` open: `obsidian vault=test-vault <command>` with `open path=...`, `eval code=...`, `dev:screenshot path=...`, `dev:errors`. Facts from the test on Obsidian 1.15.1:
+
+- `obsidian <command>` starts the desktop app when it does not run.
+- `plugin:reload id=concept-atlas` does not replace a Bases view that is open: the old code continues to run. Use `obsidian vault=test-vault reload` after `pnpm install:vault`.
+- Obsidian shows a tooltip for each element with an `aria-label` attribute, and its handler throws on SVG elements. Do not put `aria-label` on SVG elements; use `aria-labelledby`.
