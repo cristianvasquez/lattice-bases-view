@@ -23,6 +23,9 @@ interface Transform {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+/** Counter for element ids that are unique per diagram instance. */
+let diagramCount = 0;
+
 function svgEl<K extends keyof SVGElementTagNameMap>(tag: K, parent: Element, attrs: Record<string, string | number>, cls?: string): SVGElementTagNameMap[K] {
   const el = document.createElementNS(SVG_NS, tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
@@ -45,10 +48,14 @@ export class Diagram {
   private moved = false;
   private drag: { id: number; x: number; y: number; tx: number; ty: number; active: boolean } | null = null;
   private suppressClick = false;
+  /** Prefix of the element ids of this diagram. */
+  private readonly idPrefix = `concept-atlas-diagram-${++diagramCount}`;
 
   constructor(parent: HTMLElement, component: Component, private readonly handlers: DiagramHandlers) {
     this.viewport = parent.createDiv({ cls: 'concept-atlas-viewport' });
-    this.svg = svgEl('svg', this.viewport, { role: 'group', 'aria-label': 'Concept diagram' }, 'concept-atlas-svg');
+    const titleId = `${this.idPrefix}-title`;
+    this.svg = svgEl('svg', this.viewport, { role: 'group', 'aria-labelledby': titleId }, 'concept-atlas-svg');
+    svgEl('title', this.svg, { id: titleId }).textContent = 'Concept diagram';
     this.group = svgEl('g', this.svg, {});
 
     component.registerDomEvent(this.viewport, 'pointerdown', (ev) => this.onPointerDown(ev));
@@ -80,6 +87,7 @@ export class Diagram {
       if (node.zero) classes.push('is-zero');
       if (node.isStart) classes.push('is-start');
       if (model.focusIndex === node.index) classes.push('is-focused');
+      const nodeTitleId = `${this.idPrefix}-node-${node.index}-title`;
       const g = svgEl(
         'g',
         this.group,
@@ -87,13 +95,13 @@ export class Diagram {
           transform: `translate(${layout.x[node.index]! - w / 2},${layout.y[node.index]! - h / 2})`,
           tabindex: 0,
           role: 'button',
-          'aria-label': node.ariaLabel,
+          'aria-labelledby': nodeTitleId,
           'aria-pressed': model.focusIndex === node.index ? 'true' : 'false',
           'data-index': node.index,
         },
         classes.join(' '),
       );
-      svgEl('title', g, {}).textContent = node.ariaLabel;
+      svgEl('title', g, { id: nodeTitleId }).textContent = node.ariaLabel;
       svgEl('rect', g, { width: w, height: h, rx: 6, ry: 6 }, 'concept-atlas-node-box');
       const single = node.sublabel === '';
       svgEl('text', g, { x: w / 2, y: single ? h / 2 + 4 : 19, 'text-anchor': 'middle' }, 'concept-atlas-node-label').textContent = node.label;

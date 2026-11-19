@@ -15,6 +15,19 @@
   display: none;
 }
 
+/* In the DOM for assistive technology, not visible. */
+.concept-atlas .concept-atlas-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .concept-atlas .concept-atlas-main {
   display: grid;
   grid-template-columns: minmax(11rem, 1fr) minmax(0, 3fr) minmax(13rem, 1.3fr);
@@ -55,6 +68,7 @@
 }
 
 .concept-atlas.is-narrow .concept-atlas-region {
+  flex: 0 0 auto;
   overflow: visible;
   border-left: none;
   border-right: none;

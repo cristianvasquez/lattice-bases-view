@@ -31,6 +31,16 @@ import {
 
 const NARROW_WIDTH = 700;
 
+/** Counter for element ids that are unique per view instance. */
+let viewCount = 0;
+
+/** Adds a region with a heading that is not visible. The heading gives the accessible name of the region (no `aria-label`, because Obsidian shows a tooltip for it). */
+function createRegion(parent: HTMLElement, cls: string, id: string, name: string): HTMLDivElement {
+  const region = parent.createDiv({ cls: `concept-atlas-region ${cls}`, attr: { role: 'region', 'aria-labelledby': id } });
+  region.createEl('h2', { cls: 'concept-atlas-visually-hidden', text: name, attr: { id } });
+  return region;
+}
+
 interface Loaded {
   data: AtlasData;
   ctx: FormalContext;
@@ -62,8 +72,9 @@ export class ConceptLatticeView extends BasesView {
     super(controller);
     this.root = containerEl.createDiv({ cls: 'concept-atlas' });
     const main = this.root.createDiv({ cls: 'concept-atlas-main' });
+    const idPrefix = `concept-atlas-view-${++viewCount}`;
 
-    const filters = main.createDiv({ cls: 'concept-atlas-region concept-atlas-filters', attr: { role: 'region', 'aria-label': 'Filters' } });
+    const filters = createRegion(main, 'concept-atlas-filters', `${idPrefix}-filters`, 'Filters');
     this.searchInput = filters.createEl('input', {
       cls: 'concept-atlas-search',
       type: 'search',
@@ -73,7 +84,7 @@ export class ConceptLatticeView extends BasesView {
     const clear = filters.createEl('button', { cls: 'concept-atlas-clear', text: 'Clear filters' });
     this.groupsEl = filters.createDiv({ cls: 'concept-atlas-groups' });
 
-    const center = main.createDiv({ cls: 'concept-atlas-region concept-atlas-center', attr: { role: 'region', 'aria-label': 'Concept diagram' } });
+    const center = createRegion(main, 'concept-atlas-center', `${idPrefix}-diagram`, 'Concept diagram');
     this.statusEl = center.createDiv({ cls: 'concept-atlas-status', attr: { 'aria-live': 'polite' } });
     this.warningsEl = center.createDiv({ cls: 'concept-atlas-warnings' });
     this.toolbarEl = center.createDiv({ cls: 'concept-atlas-toolbar' });
@@ -86,7 +97,8 @@ export class ConceptLatticeView extends BasesView {
       key: (index, key) => this.onNodeKey(index, key),
     });
 
-    this.detailsEl = main.createDiv({ cls: 'concept-atlas-region concept-atlas-details', attr: { role: 'region', 'aria-label': 'Details' } });
+    const details = createRegion(main, 'concept-atlas-details', `${idPrefix}-details`, 'Details');
+    this.detailsEl = details.createDiv({ cls: 'concept-atlas-details-body' });
 
     const footer = this.root.createEl('details', { cls: 'concept-atlas-footer' });
     footer.createEl('summary', { text: 'What the lattice shows' });
