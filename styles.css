@@ -30,7 +30,9 @@
 
 .concept-atlas .concept-atlas-main {
   display: grid;
-  grid-template-columns: minmax(11rem, 1fr) minmax(0, 4fr);
+  /* Filters, center, notes. The notes column has a fixed width and the row has the height of the view, so that the content of the columns does not change the size of the diagram viewport. */
+  grid-template-columns: minmax(11rem, 1fr) minmax(0, 4fr) 17rem;
+  grid-template-rows: minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -56,6 +58,14 @@
   overflow: hidden;
 }
 
+.concept-atlas .concept-atlas-notes-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-1);
+  overflow: hidden;
+  border-left: var(--border-width) solid var(--background-modifier-border);
+}
+
 /* Stacked layout below 700 px of width (class set by a ResizeObserver). */
 .concept-atlas.is-narrow .concept-atlas-main {
   display: flex;
@@ -76,9 +86,9 @@
   height: 22rem;
 }
 
-.concept-atlas.is-narrow .concept-atlas-selection {
+/* Narrow: the page scrolls, not the list. */
+.concept-atlas.is-narrow .concept-atlas-notes {
   flex: 0 0 auto;
-  max-height: none;
   overflow: visible;
 }
 
@@ -249,30 +259,21 @@
   fill: var(--text-muted);
 }
 
-/* Selection panel below the diagram. In the DOM only when a filter, a focus or a search text is set. */
-.concept-atlas .concept-atlas-selection {
-  flex: 0 1 auto;
-  max-height: 40%;
-  min-height: 0;
-  overflow: auto;
-  padding-top: var(--size-4-1);
-  border-top: var(--border-width) solid var(--background-modifier-border);
+/* Notes column at the right. */
+.concept-atlas .concept-atlas-notes-count {
+  font-weight: var(--font-semibold);
 }
 
-.concept-atlas .concept-atlas-selection-head {
+.concept-atlas .concept-atlas-notes-focus {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--size-4-2);
+  gap: var(--size-4-1) var(--size-4-2);
+  color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-selection-head h3 {
-  margin: 0;
-  font-size: var(--font-ui-small);
-}
-
-.concept-atlas .concept-atlas-support {
-  font-weight: var(--font-semibold);
+.concept-atlas .concept-atlas-notes-focus:empty {
+  display: none;
 }
 
 .concept-atlas .concept-atlas-muted {
@@ -280,44 +281,30 @@
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-shared {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--size-2-2) var(--size-4-3);
-  margin: var(--size-4-1) 0;
-}
-
-.concept-atlas .concept-atlas-shared-group {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--size-2-2);
-}
-
-.concept-atlas .concept-atlas-shared-facet {
-  color: var(--text-muted);
-}
-
-.concept-atlas .concept-atlas-shared-value {
-  padding: 0 var(--size-2-3);
-  border-radius: var(--radius-s);
-  background-color: var(--background-modifier-hover);
-}
-
 .concept-atlas .concept-atlas-notes {
-  margin: var(--size-4-1) 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
   padding-left: 0;
+  overflow: auto;
   list-style: none;
-  columns: 14rem;
-  column-gap: var(--size-4-4);
 }
 
 .concept-atlas .concept-atlas-note {
-  padding: var(--size-2-1) 0;
-  break-inside: avoid;
+  padding: var(--size-2-1) 0 var(--size-2-1) var(--size-4-2);
+  border-left: 3px solid transparent;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Notes of the focused concept, or of the concept under the pointer or with the keyboard focus. */
+.concept-atlas .concept-atlas-note.is-in-concept {
+  border-left-color: var(--interactive-accent);
+}
+
+.concept-atlas .has-marks .concept-atlas-note:not(.is-in-concept) {
+  opacity: 0.5;
 }
 
 .concept-atlas .concept-atlas-footer {

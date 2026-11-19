@@ -21,11 +21,18 @@ export function countText(n: number): string {
   return `(${n})`;
 }
 
-export function selectionHeading(kind: 'focused' | 'current'): string {
-  return kind === 'focused' ? 'Focused concept' : 'Current filter';
+/** The count line of the notes column. `shown` is the number of notes after the search, or null when no search text is set. */
+export function notesCountText(total: number, filterActive: boolean, shown: number | null): string {
+  const base = filterActive ? `${notesText(total)} ${total === 1 ? 'matches' : 'match'} the filter` : notesText(total);
+  return shown === null ? base : `${base}, ${shown} shown`;
 }
 
-export const NO_SHARED_TEXT = 'These notes share no recorded value.';
+/** The line of the notes column for a focused concept. */
+export function focusCountText(count: number): string {
+  return `${count} of these ${count === 1 ? 'is' : 'are'} in the focused concept`;
+}
+
+export const NO_FILTER_MATCH_TEXT = 'No note has all of the selected values. Remove a value from the filter.';
 
 /** Shortens a text to `max` characters with an ellipsis at the end. */
 export function shorten(text: string, max: number): string {

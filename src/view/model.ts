@@ -1,4 +1,4 @@
-// Display model of the view: filter groups with counts, the displayed part of the lattice and the selection panel. Pure: no DOM.
+// Display model of the view: filter groups with counts, the displayed part of the lattice and the notes column. Pure: no DOM.
 import type { AtlasData } from '../bases';
 import {
   type Concept,
@@ -58,24 +58,30 @@ export interface NoteRef {
   name: string;
 }
 
-export interface FacetValues {
-  facet: string;
-  labels: string[];
+export interface NoteItem extends NoteRef {
+  /** True when the note is in the extent of the focused concept. */
+  inConcept: boolean;
 }
 
-/** The panel below the diagram. It exists only when the filter has a value, a concept is focused or the search text is not empty. */
-export interface SelectionPanel {
-  /** Index of the node in `nodes`: the focused concept, else 0 (the current concept). */
+/** The focused concept as the notes column shows it. */
+export interface FocusedConcept {
   index: number;
-  /** 'focused': a concept is focused. 'current': the current concept of the filter. */
-  kind: 'focused' | 'current';
   support: number;
   intent: string[];
-  shared: FacetValues[];
-  /** Notes of the extent whose name matches the search. */
-  notes: NoteRef[];
-  /** True for a focused concept whose intent is different from the current filter. */
+  /** True when the intent of the concept is different from the current filter. */
   canFilterTo: boolean;
+}
+
+/** The notes column at the right of the diagram. It always exists in an 'ok' model. */
+export interface NotesColumn {
+  /** Number of notes of the current filter (B'), before the search. With no filter: all notes. */
+  total: number;
+  filterActive: boolean;
+  /** The search text without spaces at the start and the end. '' for no search. */
+  search: string;
+  /** The notes of the current filter whose name matches the search. With a focused concept, its notes come first; else the order of Bases. */
+  items: NoteItem[];
+  focus: FocusedConcept | null;
 }
 
 export type ModelKind = 'ok' | 'no-entries' | 'no-values';
@@ -99,7 +105,7 @@ export interface DisplayModel {
   truncated: boolean;
   layout: Layout;
   focusIndex: number | null;
-  selection: SelectionPanel | null;
+  notes: NotesColumn | null;
 }
 
 /** The formal context of the atlas data: objects = paths, attributes = attribute ids. */
@@ -119,17 +125,6 @@ export function matchesSearch(name: string, search: string): boolean {
 
 function intentKey(ids: readonly string[]): string {
   return [...ids].sort().join('\u0000');
-}
-
-/** Groups attribute ids by facet, in the order of the facets. Facets without ids are left out. */
-export function groupByFacet(data: AtlasData, ids: readonly string[]): FacetValues[] {
-  const set = new Set(ids);
-  const groups: FacetValues[] = [];
-  for (const facet of data.facets) {
-    const labels = data.attributes.filter((a) => a.facet === facet.key && set.has(a.id)).map((a) => a.label);
-    if (labels.length > 0) groups.push({ facet: facet.key, labels });
-  }
-  return groups;
 }
 
 /** Filter groups: one per facet, one value per attribute, with the count of matching notes if the value is added to the filter. */
@@ -237,7 +232,6 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
 /** Builds the display model. `ctx` must be `contextOf(data)`. */
 export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState, options: ModelOptions): DisplayModel {
   const facets = data.facets.map((f) => f.key);
-  const nameOf = new Map(data.objects.map((o) => [o.path, o.name]));
 
   if (data.objects.length === 0 || data.attributes.length === 0) {
     return {
@@ -255,7 +249,7 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
       truncated: false,
       layout: emptyLayout(),
       focusIndex: null,
-      selection: null,
+      notes: null,
     };
   }
 
@@ -273,22 +267,28 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
     focusIndex = found >= 0 ? found : null;
   }
 
-  let selection: SelectionPanel | null = null;
-  if (part.filterActive || focusIndex !== null || state.search.trim() !== '') {
-    const target = nodes[focusIndex ?? 0]!;
-    const notes = objectIds(ctx, target.concept.extent)
-      .map((path) => ({ path, name: nameOf.get(path) ?? path }))
-      .filter((n) => matchesSearch(n.name, state.search));
-    selection = {
-      index: target.index,
-      kind: focusIndex === null ? 'current' : 'focused',
-      support: target.support,
-      intent: target.intent,
-      shared: groupByFacet(data, target.intent),
-      notes,
-      canFilterTo: focusIndex !== null && intentKey(selected) !== intentKey(target.intent),
-    };
-  }
+  const focusNode = focusIndex === null ? null : nodes[focusIndex]!;
+  const inFilter = part.current.extent;
+  const inConcept = focusNode?.concept.extent ?? null;
+  const all: NoteItem[] = [];
+  // Object index g of `ctx` is index g of `data.objects` (see contextOf).
+  data.objects.forEach((o, g) => {
+    if (inFilter.has(g) && matchesSearch(o.name, state.search)) all.push({ path: o.path, name: o.name, inConcept: inConcept?.has(g) ?? false });
+  });
+  // A stable order: the notes of the focused concept first, each group in the order of Bases.
+  const items = inConcept ? [...all.filter((n) => n.inConcept), ...all.filter((n) => !n.inConcept)] : all;
+  const notes: NotesColumn = {
+    total: part.current.support,
+    filterActive: part.filterActive,
+    search: state.search.trim(),
+    items,
+    focus: focusNode && {
+      index: focusNode.index,
+      support: focusNode.support,
+      intent: focusNode.intent,
+      canFilterTo: intentKey(selected) !== intentKey(focusNode.intent),
+    },
+  };
 
   return {
     kind: 'ok',
@@ -305,8 +305,13 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
     truncated: part.truncated,
     layout: part.layout,
     focusIndex,
-    selection,
+    notes,
   };
+}
+
+/** The paths of the notes of a displayed node. `ctx` must be the context of the model. */
+export function nodeNotePaths(ctx: FormalContext, node: DisplayNode): Set<string> {
+  return new Set(objectIds(ctx, node.concept.extent));
 }
 
 export interface NodesAbove {

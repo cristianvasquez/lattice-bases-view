@@ -21,7 +21,7 @@ pnpm verify   # tsc --noEmit, vitest run, production build of main.js
 pnpm build    # production build of main.js only
 ```
 
-`pnpm verify` runs 10 test files with 95 tests.
+`pnpm verify` runs 10 test files with 99 tests.
 
 ## Installation
 
@@ -41,12 +41,13 @@ View options:
 | Concept budget (full lattice) | 5000 | 500 to 20000, step 500 | The maximum number of concepts that the plugin computes for the full lattice. |
 | Concepts in the diagram | 20 | 10 to 150, step 5 | The maximum number of concepts in the diagram. |
 
-Parts of the view:
+Parts of the view, from left to right: filters, diagram, notes.
 
 - Filters: one group of check boxes for each facet. Each value shows the number of matching notes. Selected values combine with AND. A value that all matching notes share has the mark "shared by all matching notes". A value that no matching note has is disabled. "Clear filters" removes the selected values, the search text and the focus.
-- Diagram: the concepts below the current filter. Each node shows the values that it adds to the concepts above it, and its number of notes in parentheses, for example `interaction: select (6)`. A node that adds no value is small and shows only its number of notes, for example `(3)`. Point at a node, or move the keyboard focus to it: the diagram marks the node, all concepts above it and the edges between them. The values of the marked concepts together are the values of the node. The focused concept stays marked while the pointer is not on another node. Drag to move the diagram. Use the mouse wheel or the buttons `+` and `−` to zoom. "Fit" and the initial view use a scale from 0.7 to 1. When the diagram fits into the view at a scale of 0.7 or more, it is centered. Else the scale is 0.7 and the top concept is at the top center of the view; drag to see the rest. Click a node, or press Enter or Space on it, to focus it. The arrow keys move the focus to a neighbour node. Escape removes the focus.
-- Selection panel: below the diagram. It shows only when the filter has a value, a concept is focused, or the search text is not empty. Else the diagram uses the full height. The panel shows "Focused concept" or "Current filter", the number of notes, the values that all these notes share (per facet), and the matching notes in columns. Click a note name to open the note (with Ctrl or Cmd: in a new tab). For a focused concept that is different from the current filter, "Filter to this concept" sets the filter to the values of the concept.
-- Search: "Search note names" filters the note list of the selection panel by name. It does not change the lattice.
+- Diagram: the concepts below the current filter. Each node shows the values that it adds to the concepts above it, and its number of notes in parentheses, for example `interaction: select (6)`. A node that adds no value is small and shows only its number of notes, for example `(3)`. Point at a node, or move the keyboard focus to it: the diagram marks the node, all concepts above it and the edges between them. The values of the marked concepts together are the values of the node. The focused concept stays marked while the pointer is not on another node. Drag to move the diagram. Use the mouse wheel or the buttons `+` and `−` to zoom. "Fit" and the initial view use a scale from 0.7 to 1. When the diagram fits into the view at a scale of 0.7 or more, it is centered. Else the scale is 0.7 and the top concept is at the top center of the view; drag to see the rest. Click a node, or press Enter or Space on it, to focus it. The arrow keys move the focus to a neighbour node. Escape, or a click on the diagram background, removes the focus. A change of the filter, the focus or the search does not move the diagram.
+- Notes: a column at the right, always shown. From top to bottom: the search field "Search note names", the count line ("N notes", or "N notes match the filter"; with a search text also "K shown"), and the list of the notes of the current filter, one per line, in the order of Bases. The search filters the list by name. It does not change the lattice. Click a note name to open the note (with Ctrl or Cmd: in a new tab). A long name is cut; the tooltip shows the full name.
+- Focused concept in the notes column: the line "K of these are in the focused concept", and "Filter to this concept" when the values of the concept are different from the current filter. The notes of the concept move to the top of the list and have an accent bar. The other notes stay in the list and are faded. Point at a node, or move the keyboard focus to it, to mark its notes in the list without a change of order.
+- Below 700 px of width, the filters, the diagram and the notes column stack in this order and the view scrolls.
 
 The view does not show the properties of a single note. Use the Table layout of Bases for this.
 

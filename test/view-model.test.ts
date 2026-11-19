@@ -1,7 +1,7 @@
 import { ListValue, StringValue } from 'obsidian';
 import { describe, expect, it } from 'vitest';
 import { buildAtlasData, resolveFacets, type AtlasData } from '../src/bases';
-import { buildModel, contextOf, matchesSearch, neighbourFor, nodesAbove, type DisplayModel } from '../src/view/model';
+import { buildModel, contextOf, matchesSearch, neighbourFor, nodeNotePaths, nodesAbove, type DisplayModel } from '../src/view/model';
 import type { Cover } from '../src/fca';
 import { clearFilters, filterToConcept, initialState, reconcileState, setFocus, setSearch, toggleValue, type ViewState } from '../src/view/state';
 import { entry } from './bases-helpers';
@@ -29,6 +29,14 @@ function model(state: ViewState, data = sample(), maxNodes = 40): DisplayModel {
 
 function counts(m: DisplayModel): Record<string, number> {
   return Object.fromEntries(m.groups.flatMap((g) => g.values.map((v) => [v.id, v.count])));
+}
+
+function names(m: DisplayModel): string[] {
+  return m.notes!.items.map((n) => n.name);
+}
+
+function marked(m: DisplayModel): string[] {
+  return m.notes!.items.filter((n) => n.inConcept).map((n) => n.name);
 }
 
 function value(m: DisplayModel, id: string) {
@@ -73,7 +81,7 @@ describe('AND semantics', () => {
     state = toggleValue(state, 'data:hierarchical');
     const m = model(state);
     expect(m.currentSupport).toBe(1);
-    expect(m.selection!.notes.map((n) => n.path)).toEqual(['T/Bubble.md']);
+    expect(m.notes!.items.map((n) => n.path)).toEqual(['T/Bubble.md']);
   });
 
   it('removes a value when it is toggled again', () => {
@@ -95,7 +103,6 @@ describe('current concept', () => {
     const m = model(toggleValue(initialState(), 'structure:graph'));
     expect(m.nodes[0]!.intent).toEqual(m.currentIntent);
     expect(m.nodes[0]!.support).toBe(2);
-    expect(m.selection!.kind).toBe('current');
   });
 
   it('shows a zero-support concept with its own text', () => {
@@ -190,8 +197,9 @@ describe('search', () => {
     expect(searched.nodes.map((n) => n.intent)).toEqual(plain.nodes.map((n) => n.intent));
     expect(searched.covers).toEqual(plain.covers);
     expect(searched.groups).toEqual(plain.groups);
-    expect(searched.selection!.notes.map((n) => n.name)).toEqual(['Chord']);
-    expect(searched.selection!.support).toBe(4);
+    expect(names(searched)).toEqual(['Chord']);
+    expect(searched.notes!.total).toBe(4);
+    expect(searched.notes!.search).toBe('CH');
   });
 
   it('matches a case-insensitive substring', () => {
@@ -201,51 +209,65 @@ describe('search', () => {
   });
 });
 
-describe('selection panel', () => {
-  it('is absent with no filter, no focus and no search', () => {
-    expect(model(initialState()).selection).toBeNull();
-    expect(model(setSearch(initialState(), '  ')).selection).toBeNull();
+describe('notes column', () => {
+  it('lists all notes in the order of Bases with no filter', () => {
+    const m = model(initialState());
+    expect(names(m)).toEqual(['Arc', 'Bubble', 'Chord', 'Dot']);
+    expect(m.notes).toMatchObject({ total: 4, filterActive: false, search: '', focus: null });
+    expect(marked(m)).toEqual([]);
   });
 
-  it('shows the current filter when the filter has a value', () => {
+  it("lists the notes of the filter (B')", () => {
     const m = model(toggleValue(initialState(), 'structure:graph'));
-    expect(m.selection).toMatchObject({ kind: 'current', index: 0, support: 2, canFilterTo: false });
-    expect(m.selection!.shared).toEqual([
-      { facet: 'structure', labels: ['graph'] },
-      { facet: 'data', labels: ['network'] },
-    ]);
-    expect(m.selection!.notes.map((n) => n.name)).toEqual(['Bubble', 'Chord']);
+    expect(names(m)).toEqual(['Bubble', 'Chord']);
+    expect(m.notes).toMatchObject({ total: 2, filterActive: true });
   });
 
-  it('shows the focused concept when a concept is focused', () => {
-    const m = model(setFocus(initialState(), []));
-    expect(m.selection).toMatchObject({ kind: 'focused', index: 0, support: 4, shared: [], canFilterTo: false });
-    expect(m.selection!.notes).toHaveLength(4);
+  it('reduces the list with the search and does not change the concepts', () => {
+    const plain = model(toggleValue(initialState(), 'data:network'));
+    const m = model(setSearch(toggleValue(initialState(), 'data:network'), ' o '));
+    expect(names(m)).toEqual(['Chord', 'Dot']);
+    expect(m.notes).toMatchObject({ total: 3, search: 'o' });
+    expect(m.nodes.map((n) => n.intent)).toEqual(plain.nodes.map((n) => n.intent));
+    expect(model(setSearch(initialState(), 'zzz')).notes!.items).toEqual([]);
   });
 
-  it('shows the current concept when only the search text is set, and the note list follows the search', () => {
-    const m = model(setSearch(initialState(), 'o'));
-    expect(m.selection).toMatchObject({ kind: 'current', support: 4 });
-    expect(m.selection!.notes.map((n) => n.name)).toEqual(['Chord', 'Dot']);
-    expect(model(setSearch(initialState(), 'zzz')).selection!.notes).toEqual([]);
+  it('puts the notes of the focused concept first, marks them and keeps the other notes of the filter', () => {
+    const plain = model(initialState());
+    const target = plain.nodes.find((n) => n.intent.join() === 'structure:graph,data:network')!;
+    const m = model(setFocus(initialState(), target.intent));
+    expect(names(m)).toEqual(['Bubble', 'Chord', 'Arc', 'Dot']);
+    expect(marked(m)).toEqual(['Bubble', 'Chord']);
+    expect(m.notes!.focus).toMatchObject({ index: target.index, support: 2, canFilterTo: true });
+    // The search applies to both groups.
+    expect(names(model(setSearch(setFocus(initialState(), target.intent), 'r')))).toEqual(['Chord', 'Arc']);
+    // No focus: the order of Bases again.
+    expect(names(model(setFocus(m.state, null)))).toEqual(['Arc', 'Bubble', 'Chord', 'Dot']);
+  });
+
+  it('gives the paths of the notes of a node for the marks on hover', () => {
+    const data = sample();
+    const ctx = contextOf(data);
+    const m = buildModel(data, ctx, initialState(), { maxNodes: 40 });
+    const target = m.nodes.find((n) => n.intent.join() === 'data:network')!;
+    expect([...nodeNotePaths(ctx, target)]).toEqual(['T/Bubble.md', 'T/Chord.md', 'T/Dot.md']);
   });
 });
 
 describe('focus', () => {
-  it('shows the focused concept in the selection panel and filters to its intent', () => {
+  it('gives the focused concept to the notes column and filters to its intent', () => {
     const plain = model(initialState());
     const target = plain.nodes.find((n) => n.intent.join() === 'data:network')!;
     const m = model(setFocus(initialState(), target.intent));
     expect(m.focusIndex).toBe(target.index);
-    expect(m.selection!.kind).toBe('focused');
-    expect(m.selection!.support).toBe(3);
-    expect(m.selection!.shared).toEqual([{ facet: 'data', labels: ['network'] }]);
-    expect(m.selection!.canFilterTo).toBe(true);
-    const filtered = filterToConcept(m.state, m.selection!.intent);
+    expect(m.notes!.focus).toMatchObject({ index: target.index, support: 3, intent: ['data:network'], canFilterTo: true });
+    const filtered = filterToConcept(m.state, m.notes!.focus!.intent);
     expect(filtered.focus).toBeNull();
     expect(model(filtered).currentSupport).toBe(3);
     // The focused concept equals the filter: no button "Filter to this concept".
-    expect(model(setFocus(filtered, m.selection!.intent)).selection!.canFilterTo).toBe(false);
+    expect(model(setFocus(filtered, m.notes!.focus!.intent)).notes!.focus!.canFilterTo).toBe(false);
+    // The start node with no filter is the concept of all notes.
+    expect(model(setFocus(initialState(), [])).notes!.focus).toMatchObject({ index: 0, support: 4, canFilterTo: false });
   });
 
   it('drops a focus that is not displayed', () => {
@@ -298,7 +320,7 @@ describe('empty states', () => {
     expect(m.kind).toBe('no-entries');
     expect(m.nodes).toEqual([]);
     expect(m.groups).toEqual([]);
-    expect(m.selection).toBeNull();
+    expect(m.notes).toBeNull();
     expect(m.totalNotes).toBe(0);
     expect(m.state.selected).toEqual([]);
   });
@@ -318,7 +340,7 @@ describe('diagram part cache', () => {
     const first = buildModel(data, ctx, initialState(), { maxNodes: 40 });
     const searched = buildModel(data, ctx, setFocus(setSearch(initialState(), 'dot'), []), { maxNodes: 40, part: first.part });
     expect(searched.part).toBe(first.part);
-    expect(searched.selection!.notes.map((n) => n.name)).toEqual(['Dot']);
+    expect(names(searched)).toEqual(['Dot']);
     const filtered = buildModel(data, ctx, toggleValue(initialState(), 'data:network'), { maxNodes: 40, part: first.part });
     expect(filtered.part).not.toBe(first.part);
     expect(filtered.currentSupport).toBe(3);

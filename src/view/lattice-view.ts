@@ -4,7 +4,7 @@ import { type AtlasData, buildAtlasData, resolveFacets } from '../bases';
 import { type FormalContext, buildLattice } from '../fca';
 import { VIEW_TYPE, readViewConfig } from './config';
 import { Diagram } from './diagram';
-import { type DisplayModel, buildModel, contextOf, neighbourFor } from './model';
+import { type DisplayModel, buildModel, contextOf, neighbourFor, nodeNotePaths } from './model';
 import {
   type ViewState,
   clearFilters,
@@ -18,15 +18,16 @@ import {
 import {
   EXPLANATION,
   HIGHLIGHT_HINT,
-  NO_SHARED_TEXT,
+  NO_FILTER_MATCH_TEXT,
   type FullLatticeState,
   errorText,
+  focusCountText,
   fullLatticeText,
   noEntriesText,
   noSearchMatchText,
   noValuesText,
+  notesCountText,
   notesText,
-  selectionHeading,
   shownText,
 } from './text';
 
@@ -61,10 +62,12 @@ export class ConceptLatticeView extends BasesView {
   private readonly hintEl: HTMLDivElement;
   private readonly messageEl: HTMLDivElement;
   private readonly diagram: Diagram;
-  private readonly centerEl: HTMLDivElement;
-  /** The selection panel below the diagram. It is in the DOM only when the model has a selection panel. */
-  private readonly selectionEl: HTMLDivElement;
-  private readonly selectionHeadingId: string;
+  /** The notes column at the right. It is always in the DOM, so that a change of its content does not change the size of the diagram viewport. */
+  private readonly notesEl: HTMLDivElement;
+  private readonly notesCountEl: HTMLDivElement;
+  private readonly notesFocusEl: HTMLDivElement;
+  private readonly notesMessageEl: HTMLDivElement;
+  private readonly notesListEl: HTMLUListElement;
 
   private state: ViewState = initialState();
   private loaded: Loaded | null = null;
@@ -80,17 +83,10 @@ export class ConceptLatticeView extends BasesView {
     const idPrefix = `concept-atlas-view-${++viewCount}`;
 
     const filters = createRegion(main, 'concept-atlas-filters', `${idPrefix}-filters`, 'Filters');
-    this.searchInput = filters.createEl('input', {
-      cls: 'concept-atlas-search',
-      type: 'search',
-      placeholder: 'Search note names',
-      attr: { 'aria-label': 'Search note names' },
-    });
     const clear = filters.createEl('button', { cls: 'concept-atlas-clear', text: 'Clear filters' });
     this.groupsEl = filters.createDiv({ cls: 'concept-atlas-groups' });
 
     const center = createRegion(main, 'concept-atlas-center', `${idPrefix}-diagram`, 'Concept diagram');
-    this.centerEl = center;
     this.statusEl = center.createDiv({ cls: 'concept-atlas-status', attr: { 'aria-live': 'polite' } });
     this.warningsEl = center.createDiv({ cls: 'concept-atlas-warnings' });
     this.toolbarEl = center.createDiv({ cls: 'concept-atlas-toolbar' });
@@ -102,11 +98,23 @@ export class ConceptLatticeView extends BasesView {
     this.diagram = new Diagram(center, this, `${idPrefix}-diagram`, {
       activate: (index) => this.focusNode(index),
       key: (index, key) => this.onNodeKey(index, key),
+      background: () => {
+        if (this.state.focus !== null) this.update(setFocus(this.state, null));
+      },
+      marked: (index) => this.markNotes(index),
     });
 
-    // Not attached here: render() adds the panel after the diagram when it has content.
-    this.selectionHeadingId = `${idPrefix}-selection`;
-    this.selectionEl = createDiv({ cls: 'concept-atlas-selection', attr: { role: 'region', 'aria-labelledby': this.selectionHeadingId } });
+    this.notesEl = createRegion(main, 'concept-atlas-notes-column', `${idPrefix}-notes`, 'Notes');
+    this.searchInput = this.notesEl.createEl('input', {
+      cls: 'concept-atlas-search',
+      type: 'search',
+      placeholder: 'Search note names',
+      attr: { 'aria-label': 'Search note names' },
+    });
+    this.notesCountEl = this.notesEl.createDiv({ cls: 'concept-atlas-notes-count', attr: { 'aria-live': 'polite' } });
+    this.notesFocusEl = this.notesEl.createDiv({ cls: 'concept-atlas-notes-focus' });
+    this.notesMessageEl = this.notesEl.createDiv({ cls: 'concept-atlas-muted' });
+    this.notesListEl = this.notesEl.createEl('ul', { cls: 'concept-atlas-notes' });
 
     const footer = this.root.createEl('details', { cls: 'concept-atlas-footer' });
     footer.createEl('summary', { text: 'What the lattice shows' });
@@ -121,16 +129,15 @@ export class ConceptLatticeView extends BasesView {
     this.registerDomEvent(zoomIn, 'click', () => this.diagram.zoomBy(1.25));
     this.registerDomEvent(zoomOut, 'click', () => this.diagram.zoomBy(0.8));
     this.registerDomEvent(fit, 'click', () => this.diagram.fit());
-    this.registerDomEvent(this.selectionEl, 'click', (ev) => this.onSelectionClick(ev));
+    this.registerDomEvent(this.notesEl, 'click', (ev) => this.onNotesClick(ev));
 
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? this.root.clientWidth;
       this.root.toggleClass('is-narrow', width > 0 && width < NARROW_WIDTH);
-      this.diagram.resized();
     });
     observer.observe(this.root);
     this.register(() => observer.disconnect());
-    // The selection panel changes the height of the viewport, not the size of the root.
+    // Fits the diagram when the viewport gets a new size: a resize of the window or the pane, or the narrow mode. A change of the filter, the focus, the hover or the search does not change the size of the viewport: the notes column is always in the DOM and has a fixed width.
     const viewportObserver = new ResizeObserver(() => this.diagram.resized());
     viewportObserver.observe(this.diagram.viewport);
     this.register(() => viewportObserver.disconnect());
@@ -208,15 +215,15 @@ export class ConceptLatticeView extends BasesView {
     if (next !== null) this.focusNode(next);
   }
 
-  private onSelectionClick(ev: MouseEvent): void {
+  private onNotesClick(ev: MouseEvent): void {
     const target = ev.target instanceof Element ? ev.target.closest<HTMLElement>('[data-path], [data-action]') : null;
     if (!target) return;
     if (target.dataset.path !== undefined) {
       ev.preventDefault();
       void this.app.workspace.openLinkText(target.dataset.path, '', Keymap.isModEvent(ev));
-    } else if (target.dataset.action === 'filter-to' && this.model?.selection) {
+    } else if (target.dataset.action === 'filter-to' && this.model?.notes?.focus) {
       // The start node of the new diagram (index 0) gets the keyboard focus; the button is removed.
-      this.update(filterToConcept(this.state, this.model.selection.intent), 0);
+      this.update(filterToConcept(this.state, this.model.notes.focus.intent), 0);
     }
   }
 
@@ -249,8 +256,8 @@ export class ConceptLatticeView extends BasesView {
     if (partChanged) keepFocus(this.groupsEl, ['data-attribute'], () => this.renderFilters());
     this.renderStatus();
     this.renderWarnings();
-    // Before the diagram: the panel changes the viewport height, and the fit in diagram.render() measures it.
-    keepFocus(this.selectionEl, ['data-path', 'data-action'], () => this.renderSelection());
+    // Before the diagram: the diagram calls markNotes() on the new list elements.
+    keepFocus(this.notesEl, ['data-path', 'data-action'], () => this.renderNotes());
     if (ok && partChanged) this.diagram.render(model, domFocus);
     else if (ok) this.diagram.setFocus(model.focusIndex, domFocus);
   }
@@ -289,40 +296,38 @@ export class ConceptLatticeView extends BasesView {
     }
   }
 
-  private renderSelection(): void {
-    this.selectionEl.empty();
+  private renderNotes(): void {
+    this.notesFocusEl.empty();
+    this.notesListEl.empty();
     const model = this.model;
-    const selection = model?.kind === 'ok' ? model.selection : null;
-    if (!model || !selection) {
-      this.selectionEl.remove();
-      return;
+    const notes = model?.kind === 'ok' ? model.notes : null;
+    this.notesCountEl.setText(notes ? notesCountText(notes.total, notes.filterActive, notes.search === '' ? null : notes.items.length) : '');
+    let message: string | null = null;
+    if (notes && notes.total === 0) message = NO_FILTER_MATCH_TEXT;
+    else if (notes && notes.items.length === 0) message = noSearchMatchText(notes.search);
+    this.notesMessageEl.toggleClass('is-hidden', message === null);
+    this.notesMessageEl.setText(message ?? '');
+    if (!notes) return;
+
+    if (notes.focus) {
+      this.notesFocusEl.createSpan({ text: focusCountText(notes.focus.support) });
+      if (notes.focus.canFilterTo) this.notesFocusEl.createEl('button', { cls: 'concept-atlas-filter-to', text: 'Filter to this concept', attr: { 'data-action': 'filter-to' } });
     }
-    if (this.selectionEl.parentElement !== this.centerEl) this.centerEl.appendChild(this.selectionEl);
-
-    const head = this.selectionEl.createDiv({ cls: 'concept-atlas-selection-head' });
-    head.createEl('h3', { text: selectionHeading(selection.kind), attr: { id: this.selectionHeadingId } });
-    head.createSpan({ cls: 'concept-atlas-support', text: notesText(selection.support) });
-    if (selection.canFilterTo) head.createEl('button', { cls: 'concept-atlas-filter-to', text: 'Filter to this concept', attr: { 'data-action': 'filter-to' } });
-
-    if (selection.shared.length > 0) {
-      const shared = this.selectionEl.createDiv({ cls: 'concept-atlas-shared' });
-      for (const group of selection.shared) {
-        const item = shared.createSpan({ cls: 'concept-atlas-shared-group' });
-        item.createSpan({ cls: 'concept-atlas-shared-facet', text: `${group.facet}:` });
-        for (const label of group.labels) item.createSpan({ cls: 'concept-atlas-shared-value', text: label });
-      }
-    } else {
-      this.selectionEl.createDiv({ cls: 'concept-atlas-muted', text: NO_SHARED_TEXT });
+    for (const note of notes.items) {
+      const item = this.notesListEl.createEl('li', { cls: 'concept-atlas-note', attr: { 'data-note': note.path } });
+      item.toggleClass('is-in-concept', note.inConcept);
+      item.createEl('a', { cls: 'internal-link', text: note.name, href: note.path, attr: { 'data-path': note.path, title: note.name } });
     }
+    this.notesListEl.toggleClass('has-marks', notes.focus !== null);
+  }
 
-    if (selection.notes.length === 0) {
-      const text = selection.support === 0 ? 'No note has all of these values.' : noSearchMatchText(model.state.search.trim());
-      this.selectionEl.createDiv({ cls: 'concept-atlas-muted', text });
-    } else {
-      const list = this.selectionEl.createEl('ul', { cls: 'concept-atlas-notes' });
-      for (const note of selection.notes) {
-        list.createEl('li', { cls: 'concept-atlas-note' }).createEl('a', { cls: 'internal-link', text: note.name, href: note.path, attr: { 'data-path': note.path } });
-      }
+  /** Marks the notes of a displayed node in the list, with class changes only: no new render, no change of order, no scroll. `null` removes the marks. */
+  private markNotes(index: number | null): void {
+    const node = index === null ? undefined : this.model?.nodes[index];
+    const paths = node && this.loaded ? nodeNotePaths(this.loaded.ctx, node) : null;
+    this.notesListEl.toggleClass('has-marks', paths !== null);
+    for (const item of Array.from(this.notesListEl.children)) {
+      if (item instanceof HTMLElement) item.toggleClass('is-in-concept', paths?.has(item.dataset.note ?? '') ?? false);
     }
   }
 }

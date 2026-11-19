@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_FACETS } from '../src/bases';
 import { readViewConfig } from '../src/view/config';
-import { EXPLANATION, HIGHLIGHT_HINT, fullLatticeText, noValuesText, shorten, shownText } from '../src/view/text';
+import { EXPLANATION, HIGHLIGHT_HINT, NO_FILTER_MATCH_TEXT, focusCountText, fullLatticeText, noValuesText, notesCountText, shorten, shownText } from '../src/view/text';
 
 describe('status text', () => {
   it('separates the full lattice from the displayed part', () => {
@@ -25,6 +25,25 @@ describe('status text', () => {
   it('shortens long labels with an ellipsis', () => {
     expect(shorten('short', 10)).toBe('short');
     expect(shorten('structure: graph, data: network', 12)).toBe('structure:…');
+  });
+});
+
+describe('notes column text', () => {
+  it('gives the count line with and without a filter and a search', () => {
+    expect(notesCountText(14, false, null)).toBe('14 notes');
+    expect(notesCountText(5, true, null)).toBe('5 notes match the filter');
+    expect(notesCountText(1, true, null)).toBe('1 note matches the filter');
+    expect(notesCountText(5, true, 2)).toBe('5 notes match the filter, 2 shown');
+    expect(notesCountText(14, false, 0)).toBe('14 notes, 0 shown');
+  });
+
+  it('gives the line of the focused concept', () => {
+    expect(focusCountText(3)).toBe('3 of these are in the focused concept');
+    expect(focusCountText(1)).toBe('1 of these is in the focused concept');
+  });
+
+  it('does not say that a note does not have a value', () => {
+    expect(NO_FILTER_MATCH_TEXT).not.toMatch(/does not have/i);
   });
 });
 

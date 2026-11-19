@@ -25,6 +25,10 @@ export interface DiagramHandlers {
   activate(index: number): void;
   /** Arrow keys and Escape on a node. */
   key(index: number, key: 'up' | 'down' | 'left' | 'right' | 'escape'): void;
+  /** Click on the diagram background (not after a drag). */
+  background(): void;
+  /** The marked node changed: the node under the pointer, else the node with the keyboard focus, else the focused concept, else null. */
+  marked(index: number | null): void;
 }
 
 interface Transform {
@@ -190,6 +194,7 @@ export class Diagram {
     const edges = new Set(above.edges);
     this.nodeEls.forEach((el, i) => el.classList.toggle('is-marked', nodes.has(i)));
     this.edgeEls.forEach((el, i) => el.classList.toggle('is-marked', edges.has(this.covers[i]!)));
+    this.handlers.marked(valid ? target : null);
   }
 
   /** Fits the diagram to the viewport at a scale from 0.7 to 1. A larger diagram shows the start node at the top center. See `fitTransform`. */
@@ -273,6 +278,7 @@ export class Diagram {
     }
     const index = this.nodeIndex(ev.target);
     if (index !== null) this.handlers.activate(index);
+    else this.handlers.background();
   }
 
   private onKeyDown(ev: KeyboardEvent): void {
