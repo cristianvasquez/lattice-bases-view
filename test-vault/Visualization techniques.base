@@ -1,0 +1,14 @@
+filters:
+  and:
+    - file.inFolder("Techniques")
+views:
+  - type: concept-lattice
+    name: Concept lattice
+  - type: table
+    name: Table
+    order:
+      - file.name
+      - structure
+      - data
+      - task
+      - interaction
