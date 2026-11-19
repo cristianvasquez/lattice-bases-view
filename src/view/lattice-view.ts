@@ -92,7 +92,7 @@ export class ConceptLatticeView extends BasesView {
     const zoomOut = this.toolbarEl.createEl('button', { text: '−', attr: { 'aria-label': 'Zoom out' } });
     const fit = this.toolbarEl.createEl('button', { text: 'Fit', attr: { 'aria-label': 'Fit the diagram to the view' } });
     this.messageEl = center.createDiv({ cls: 'concept-atlas-message' });
-    this.diagram = new Diagram(center, this, {
+    this.diagram = new Diagram(center, this, `${idPrefix}-diagram`, {
       activate: (index) => this.focusNode(index),
       key: (index, key) => this.onNodeKey(index, key),
     });

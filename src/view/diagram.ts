@@ -51,11 +51,10 @@ export class Diagram {
   /** Prefix of the element ids of this diagram. */
   private readonly idPrefix = `concept-atlas-diagram-${++diagramCount}`;
 
-  constructor(parent: HTMLElement, component: Component, private readonly handlers: DiagramHandlers) {
+  /** `labelId` is the id of the element that gives the accessible name of the diagram. It is not an SVG `title`, because Chromium shows a `title` of the root SVG as a tooltip on the full diagram. */
+  constructor(parent: HTMLElement, component: Component, labelId: string, private readonly handlers: DiagramHandlers) {
     this.viewport = parent.createDiv({ cls: 'concept-atlas-viewport' });
-    const titleId = `${this.idPrefix}-title`;
-    this.svg = svgEl('svg', this.viewport, { role: 'group', 'aria-labelledby': titleId }, 'concept-atlas-svg');
-    svgEl('title', this.svg, { id: titleId }).textContent = 'Concept diagram';
+    this.svg = svgEl('svg', this.viewport, { role: 'group', 'aria-labelledby': labelId }, 'concept-atlas-svg');
     this.group = svgEl('g', this.svg, {});
 
     component.registerDomEvent(this.viewport, 'pointerdown', (ev) => this.onPointerDown(ev));
