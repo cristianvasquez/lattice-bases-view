@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildAtlasData, resolveFacets, type AtlasData } from '../src/bases';
 import { buildModel, contextOf, matchesSearch, neighbourFor, nodesAbove, type DisplayModel } from '../src/view/model';
 import type { Cover } from '../src/fca';
-import { clearFilters, filterToConcept, initialState, reconcileState, selectNote, setFocus, setSearch, toggleValue, type ViewState } from '../src/view/state';
+import { clearFilters, filterToConcept, initialState, reconcileState, setFocus, setSearch, toggleValue, type ViewState } from '../src/view/state';
 import { entry } from './bases-helpers';
 
 const s = (text: string) => new StringValue(text);
@@ -73,7 +73,7 @@ describe('AND semantics', () => {
     state = toggleValue(state, 'data:hierarchical');
     const m = model(state);
     expect(m.currentSupport).toBe(1);
-    expect(m.details!.notes.map((n) => n.path)).toEqual(['T/Bubble.md']);
+    expect(m.selection!.notes.map((n) => n.path)).toEqual(['T/Bubble.md']);
   });
 
   it('removes a value when it is toggled again', () => {
@@ -95,7 +95,7 @@ describe('current concept', () => {
     const m = model(toggleValue(initialState(), 'structure:graph'));
     expect(m.nodes[0]!.intent).toEqual(m.currentIntent);
     expect(m.nodes[0]!.support).toBe(2);
-    expect(m.details!.isCurrent).toBe(true);
+    expect(m.selection!.kind).toBe('current');
   });
 
   it('shows a zero-support concept with its own text', () => {
@@ -109,7 +109,9 @@ describe('current concept', () => {
     const m = model(initialState());
     const graphNetwork = m.nodes.find((n) => n.intent.join() === 'structure:graph,data:network')!;
     expect(graphNetwork.reduced).toEqual(['structure:graph']);
-    expect(graphNetwork.label).toBe('structure: graph');
+    expect(graphNetwork.label).toBe('structure: graph (2)');
+    expect(graphNetwork.sublabel).toBe('');
+    expect(graphNetwork.ariaLabel).toBe('2 notes. Values: structure: graph, data: network.');
   });
 });
 
@@ -119,7 +121,7 @@ describe('compact nodes', () => {
     const bubble = m.nodes.find((n) => n.support === 1 && n.intent.length === 4)!;
     expect(bubble.reduced).toEqual([]);
     expect(bubble.compact).toBe(true);
-    expect(bubble.label).toBe('1 note');
+    expect(bubble.label).toBe('(1)');
     expect(bubble.sublabel).toBe('');
     expect(bubble.ariaLabel).toBe('1 note. Values: structure: graph, structure: tree, data: hierarchical, data: network.');
     for (const n of m.nodes.filter((n) => !n.compact)) expect(n.reduced.length > 0 || n.isStart || n.zero).toBe(true);
@@ -133,6 +135,7 @@ describe('compact nodes', () => {
     const zero = m.nodes.find((n) => n.zero)!;
     expect(zero.compact).toBe(false);
     expect(zero.label).toBe('No note has all of these values');
+    expect(zero.sublabel).toBe('0 notes');
   });
 });
 
@@ -187,8 +190,8 @@ describe('search', () => {
     expect(searched.nodes.map((n) => n.intent)).toEqual(plain.nodes.map((n) => n.intent));
     expect(searched.covers).toEqual(plain.covers);
     expect(searched.groups).toEqual(plain.groups);
-    expect(searched.details!.notes.map((n) => n.name)).toEqual(['Chord']);
-    expect(searched.details!.support).toBe(4);
+    expect(searched.selection!.notes.map((n) => n.name)).toEqual(['Chord']);
+    expect(searched.selection!.support).toBe(4);
   });
 
   it('matches a case-insensitive substring', () => {
@@ -198,18 +201,51 @@ describe('search', () => {
   });
 });
 
-describe('focus and details', () => {
-  it('shows the focused concept in the details and filters to its intent', () => {
+describe('selection panel', () => {
+  it('is absent with no filter, no focus and no search', () => {
+    expect(model(initialState()).selection).toBeNull();
+    expect(model(setSearch(initialState(), '  ')).selection).toBeNull();
+  });
+
+  it('shows the current filter when the filter has a value', () => {
+    const m = model(toggleValue(initialState(), 'structure:graph'));
+    expect(m.selection).toMatchObject({ kind: 'current', index: 0, support: 2, canFilterTo: false });
+    expect(m.selection!.shared).toEqual([
+      { facet: 'structure', labels: ['graph'] },
+      { facet: 'data', labels: ['network'] },
+    ]);
+    expect(m.selection!.notes.map((n) => n.name)).toEqual(['Bubble', 'Chord']);
+  });
+
+  it('shows the focused concept when a concept is focused', () => {
+    const m = model(setFocus(initialState(), []));
+    expect(m.selection).toMatchObject({ kind: 'focused', index: 0, support: 4, shared: [], canFilterTo: false });
+    expect(m.selection!.notes).toHaveLength(4);
+  });
+
+  it('shows the current concept when only the search text is set, and the note list follows the search', () => {
+    const m = model(setSearch(initialState(), 'o'));
+    expect(m.selection).toMatchObject({ kind: 'current', support: 4 });
+    expect(m.selection!.notes.map((n) => n.name)).toEqual(['Chord', 'Dot']);
+    expect(model(setSearch(initialState(), 'zzz')).selection!.notes).toEqual([]);
+  });
+});
+
+describe('focus', () => {
+  it('shows the focused concept in the selection panel and filters to its intent', () => {
     const plain = model(initialState());
     const target = plain.nodes.find((n) => n.intent.join() === 'data:network')!;
     const m = model(setFocus(initialState(), target.intent));
     expect(m.focusIndex).toBe(target.index);
-    expect(m.details!.isCurrent).toBe(false);
-    expect(m.details!.support).toBe(3);
-    expect(m.details!.shared).toEqual([{ facet: 'data', labels: ['network'] }]);
-    const filtered = filterToConcept(m.state, m.details!.intent);
+    expect(m.selection!.kind).toBe('focused');
+    expect(m.selection!.support).toBe(3);
+    expect(m.selection!.shared).toEqual([{ facet: 'data', labels: ['network'] }]);
+    expect(m.selection!.canFilterTo).toBe(true);
+    const filtered = filterToConcept(m.state, m.selection!.intent);
     expect(filtered.focus).toBeNull();
     expect(model(filtered).currentSupport).toBe(3);
+    // The focused concept equals the filter: no button "Filter to this concept".
+    expect(model(setFocus(filtered, m.selection!.intent)).selection!.canFilterTo).toBe(false);
   });
 
   it('drops a focus that is not displayed', () => {
@@ -229,21 +265,9 @@ describe('focus and details', () => {
     if (row.length > 1) expect(neighbourFor(m, row[0]!, 'right')).toBe(row[1]);
   });
 
-  it('clears the filter, the search and the focus, but keeps the inspected note', () => {
-    const state = selectNote(setFocus(setSearch(toggleValue(initialState(), 'data:network'), 'x'), []), 'T/Dot.md');
-    expect(clearFilters(state)).toEqual({ selected: [], focus: null, search: '', selectedNote: 'T/Dot.md' });
-  });
-});
-
-describe('note values', () => {
-  it('lists the recorded values and the facets that are not annotated', () => {
-    const m = model(selectNote(initialState(), 'T/Dot.md'));
-    expect(m.inspection).toEqual({
-      path: 'T/Dot.md',
-      name: 'Dot',
-      recorded: [{ facet: 'data', labels: ['network'] }],
-      notAnnotated: ['structure', 'task'],
-    });
+  it('clears the filter, the search and the focus', () => {
+    const state = setFocus(setSearch(toggleValue(initialState(), 'data:network'), 'x'), []);
+    expect(clearFilters(state)).toEqual({ selected: [], focus: null, search: '' });
   });
 });
 
@@ -252,7 +276,6 @@ describe('data updates', () => {
     const state: ViewState = {
       selected: ['data:network', 'structure:graph'],
       focus: ['structure:graph', 'data:network'],
-      selectedNote: 'T/Chord.md',
       search: 'dot',
     };
     expect(reconcileState(state, sample())).toEqual({ ...state, selected: ['structure:graph', 'data:network'] });
@@ -264,7 +287,7 @@ describe('data updates', () => {
       ],
       facets,
     );
-    expect(reconcileState(state, changed)).toEqual({ selected: ['data:network'], focus: null, selectedNote: null, search: 'dot' });
+    expect(reconcileState(state, changed)).toEqual({ selected: ['data:network'], focus: null, search: 'dot' });
   });
 });
 
@@ -275,7 +298,7 @@ describe('empty states', () => {
     expect(m.kind).toBe('no-entries');
     expect(m.nodes).toEqual([]);
     expect(m.groups).toEqual([]);
-    expect(m.details).toBeNull();
+    expect(m.selection).toBeNull();
     expect(m.totalNotes).toBe(0);
     expect(m.state.selected).toEqual([]);
   });
@@ -295,7 +318,7 @@ describe('diagram part cache', () => {
     const first = buildModel(data, ctx, initialState(), { maxNodes: 40 });
     const searched = buildModel(data, ctx, setFocus(setSearch(initialState(), 'dot'), []), { maxNodes: 40, part: first.part });
     expect(searched.part).toBe(first.part);
-    expect(searched.details!.notes.map((n) => n.name)).toEqual(['Dot']);
+    expect(searched.selection!.notes.map((n) => n.name)).toEqual(['Dot']);
     const filtered = buildModel(data, ctx, toggleValue(initialState(), 'data:network'), { maxNodes: 40, part: first.part });
     expect(filtered.part).not.toBe(first.part);
     expect(filtered.currentSupport).toBe(3);

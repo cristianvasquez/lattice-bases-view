@@ -9,8 +9,16 @@ const MIN_SCALE = 0.2;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 4;
 /** Size of a compact node: a node that adds no value to the nodes above it. */
-const COMPACT_WIDTH = 88;
+const COMPACT_WIDTH = 56;
 const COMPACT_HEIGHT = 28;
+/** Height of a node with one line of text. A node with a second line (zero support) uses `DEFAULT_LAYOUT.nodeHeight`. */
+const SINGLE_HEIGHT = 32;
+
+function nodeHeight(node: DisplayNode | undefined): number {
+  if (!node) return DEFAULT_LAYOUT.nodeHeight;
+  if (node.compact) return COMPACT_HEIGHT;
+  return node.sublabel === '' ? SINGLE_HEIGHT : DEFAULT_LAYOUT.nodeHeight;
+}
 
 export interface DiagramHandlers {
   /** Click, Enter or Space on a node. */
@@ -94,12 +102,10 @@ export class Diagram {
   render(model: DisplayModel, domFocus: number | null): void {
     const { layout, nodes, covers } = model;
     this.size = { width: layout.width, height: layout.height };
-    this.start = nodes.length > 0 ? { x: layout.x[0]!, y: layout.y[0]! - DEFAULT_LAYOUT.nodeHeight / 2 } : { x: layout.width / 2, y: 0 };
+    this.start = nodes.length > 0 ? { x: layout.x[0]!, y: layout.y[0]! - nodeHeight(nodes[0]) / 2 } : { x: layout.width / 2, y: 0 };
     this.group.replaceChildren();
     const w = DEFAULT_LAYOUT.nodeWidth;
-    const h = DEFAULT_LAYOUT.nodeHeight;
-
-    const half = (node: DisplayNode | undefined) => (node?.compact ? COMPACT_HEIGHT : h) / 2;
+    const half = (node: DisplayNode | undefined) => nodeHeight(node) / 2;
 
     const edges = svgEl('g', this.group, {}, 'concept-atlas-edges');
     this.covers = covers;
@@ -117,7 +123,7 @@ export class Diagram {
       if (model.focusIndex === node.index) classes.push('is-focused');
       const nodeTitleId = `${this.idPrefix}-node-${node.index}-title`;
       const nw = node.compact ? COMPACT_WIDTH : w;
-      const nh = node.compact ? COMPACT_HEIGHT : h;
+      const nh = nodeHeight(node);
       const g = svgEl(
         'g',
         this.group,

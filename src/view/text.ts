@@ -16,6 +16,17 @@ export function notesText(n: number): string {
   return plural(n, 'note');
 }
 
+/** The short number of notes in a diagram node: "(3)". The accessible name of the node keeps "3 notes". */
+export function countText(n: number): string {
+  return `(${n})`;
+}
+
+export function selectionHeading(kind: 'focused' | 'current'): string {
+  return kind === 'focused' ? 'Focused concept' : 'Current filter';
+}
+
+export const NO_SHARED_TEXT = 'These notes share no recorded value.';
+
 /** Shortens a text to `max` characters with an ellipsis at the end. */
 export function shorten(text: string, max: number): string {
   if (text.length <= max) return text;

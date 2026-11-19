@@ -1,4 +1,4 @@
-// Display model of the view: filter groups with counts, the displayed part of the lattice, details and note values. Pure: no DOM.
+// Display model of the view: filter groups with counts, the displayed part of the lattice and the selection panel. Pure: no DOM.
 import type { AtlasData } from '../bases';
 import {
   type Concept,
@@ -13,7 +13,7 @@ import {
 } from '../fca';
 import { type Layout, layoutDiagram } from './layout';
 import type { ViewState } from './state';
-import { ZERO_SUPPORT_TEXT, notesText, shorten, valueText } from './text';
+import { ZERO_SUPPORT_TEXT, countText, notesText, shorten, valueText } from './text';
 
 export const LABEL_MAX = 24;
 
@@ -63,25 +63,19 @@ export interface FacetValues {
   labels: string[];
 }
 
-export interface ConceptDetails {
-  /** Index of the node in `nodes`. 0 is the current concept. */
+/** The panel below the diagram. It exists only when the filter has a value, a concept is focused or the search text is not empty. */
+export interface SelectionPanel {
+  /** Index of the node in `nodes`: the focused concept, else 0 (the current concept). */
   index: number;
-  isCurrent: boolean;
+  /** 'focused': a concept is focused. 'current': the current concept of the filter. */
+  kind: 'focused' | 'current';
   support: number;
   intent: string[];
   shared: FacetValues[];
   /** Notes of the extent whose name matches the search. */
   notes: NoteRef[];
-  /** True when the filter already equals the intent. */
-  filterEqualsIntent: boolean;
-}
-
-export interface Inspection {
-  path: string;
-  name: string;
-  recorded: FacetValues[];
-  /** Facet keys with no recorded value in this note. */
-  notAnnotated: string[];
+  /** True for a focused concept whose intent is different from the current filter. */
+  canFilterTo: boolean;
 }
 
 export type ModelKind = 'ok' | 'no-entries' | 'no-values';
@@ -105,8 +99,7 @@ export interface DisplayModel {
   truncated: boolean;
   layout: Layout;
   focusIndex: number | null;
-  details: ConceptDetails | null;
-  inspection: Inspection | null;
+  selection: SelectionPanel | null;
 }
 
 /** The formal context of the atlas data: objects = paths, attributes = attribute ids. */
@@ -174,7 +167,7 @@ export interface ModelOptions {
   part?: DiagramPart | null;
 }
 
-/** The parts of the model that depend only on the data, the filter and `maxNodes`: not on the focus, the search or the selected note. */
+/** The parts of the model that depend only on the data, the filter and `maxNodes`: not on the focus or the search. */
 export interface DiagramPart {
   key: string;
   selected: string[];
@@ -212,16 +205,15 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
     const zero = concept.support === 0;
     const values = intent.map((id) => labelOf.get(id) ?? id);
     let label: string;
-    let sublabel = notesText(concept.support);
+    let sublabel = '';
     let compact = false;
-    if (zero) label = ZERO_SUPPORT_TEXT;
-    else if (isStart && !filterActive) {
-      label = `All ${notesText(concept.support)}`;
-      sublabel = '';
-    } else if (reduced.length > 0) label = shorten(reduced.map((id) => labelOf.get(id) ?? id).join(', '), LABEL_MAX);
+    if (zero) {
+      label = ZERO_SUPPORT_TEXT;
+      sublabel = notesText(concept.support);
+    } else if (isStart && !filterActive) label = `All ${notesText(concept.support)}`;
+    else if (reduced.length > 0) label = `${shorten(reduced.map((id) => labelOf.get(id) ?? id).join(', '), LABEL_MAX)} ${countText(concept.support)}`;
     else {
-      label = notesText(concept.support);
-      sublabel = '';
+      label = countText(concept.support);
       compact = true;
     }
     const ariaValues = values.length > 0 ? `Values: ${values.join(', ')}` : 'No shared values';
@@ -246,7 +238,6 @@ export function buildDiagramPart(data: AtlasData, ctx: FormalContext, selectedId
 export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState, options: ModelOptions): DisplayModel {
   const facets = data.facets.map((f) => f.key);
   const nameOf = new Map(data.objects.map((o) => [o.path, o.name]));
-  const inspection = inspect(data, state.selectedNote);
 
   if (data.objects.length === 0 || data.attributes.length === 0) {
     return {
@@ -264,8 +255,7 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
       truncated: false,
       layout: emptyLayout(),
       focusIndex: null,
-      details: null,
-      inspection,
+      selection: null,
     };
   }
 
@@ -283,19 +273,22 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
     focusIndex = found >= 0 ? found : null;
   }
 
-  const target = nodes[focusIndex ?? 0]!;
-  const notes = objectIds(ctx, target.concept.extent)
-    .map((path) => ({ path, name: nameOf.get(path) ?? path }))
-    .filter((n) => matchesSearch(n.name, state.search));
-  const details: ConceptDetails = {
-    index: target.index,
-    isCurrent: target.index === 0,
-    support: target.support,
-    intent: target.intent,
-    shared: groupByFacet(data, target.intent),
-    notes,
-    filterEqualsIntent: intentKey(selected) === intentKey(target.intent),
-  };
+  let selection: SelectionPanel | null = null;
+  if (part.filterActive || focusIndex !== null || state.search.trim() !== '') {
+    const target = nodes[focusIndex ?? 0]!;
+    const notes = objectIds(ctx, target.concept.extent)
+      .map((path) => ({ path, name: nameOf.get(path) ?? path }))
+      .filter((n) => matchesSearch(n.name, state.search));
+    selection = {
+      index: target.index,
+      kind: focusIndex === null ? 'current' : 'focused',
+      support: target.support,
+      intent: target.intent,
+      shared: groupByFacet(data, target.intent),
+      notes,
+      canFilterTo: focusIndex !== null && intentKey(selected) !== intentKey(target.intent),
+    };
+  }
 
   return {
     kind: 'ok',
@@ -312,18 +305,8 @@ export function buildModel(data: AtlasData, ctx: FormalContext, state: ViewState
     truncated: part.truncated,
     layout: part.layout,
     focusIndex,
-    details,
-    inspection,
+    selection,
   };
-}
-
-/** The recorded values per facet and the facets that are not annotated in the note. `null` when the path is not in the data. */
-export function inspect(data: AtlasData, path: string | null): Inspection | null {
-  if (path === null) return null;
-  const object = data.objects.find((o) => o.path === path);
-  if (!object) return null;
-  const ids = Object.values(object.attributes).flat();
-  return { path: object.path, name: object.name, recorded: groupByFacet(data, ids), notAnnotated: [...object.unannotated] };
 }
 
 export interface NodesAbove {

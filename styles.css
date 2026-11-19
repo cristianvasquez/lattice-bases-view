@@ -30,7 +30,7 @@
 
 .concept-atlas .concept-atlas-main {
   display: grid;
-  grid-template-columns: minmax(11rem, 1fr) minmax(0, 3fr) minmax(13rem, 1.3fr);
+  grid-template-columns: minmax(11rem, 1fr) minmax(0, 4fr);
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -47,10 +47,6 @@
   flex-direction: column;
   gap: var(--size-4-2);
   border-right: var(--border-width) solid var(--background-modifier-border);
-}
-
-.concept-atlas .concept-atlas-details {
-  border-left: var(--border-width) solid var(--background-modifier-border);
 }
 
 .concept-atlas .concept-atlas-center {
@@ -78,6 +74,12 @@
 .concept-atlas.is-narrow .concept-atlas-viewport {
   flex: 0 0 auto;
   height: 22rem;
+}
+
+.concept-atlas.is-narrow .concept-atlas-selection {
+  flex: 0 0 auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .concept-atlas .concept-atlas-search {
@@ -247,81 +249,75 @@
   fill: var(--text-muted);
 }
 
-.concept-atlas h4 {
-  margin: var(--size-4-2) 0 var(--size-4-1);
+/* Selection panel below the diagram. In the DOM only when a filter, a focus or a search text is set. */
+.concept-atlas .concept-atlas-selection {
+  flex: 0 1 auto;
+  max-height: 40%;
+  min-height: 0;
+  overflow: auto;
+  padding-top: var(--size-4-1);
+  border-top: var(--border-width) solid var(--background-modifier-border);
+}
+
+.concept-atlas .concept-atlas-selection-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.concept-atlas .concept-atlas-selection-head h3 {
+  margin: 0;
+  font-size: var(--font-ui-small);
 }
 
 .concept-atlas .concept-atlas-support {
   font-weight: var(--font-semibold);
 }
 
-.concept-atlas .concept-atlas-subhead {
-  margin-top: var(--size-4-2);
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  text-transform: uppercase;
-}
-
 .concept-atlas .concept-atlas-muted {
+  margin: var(--size-4-1) 0;
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-facets {
+.concept-atlas .concept-atlas-shared {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-2-2) var(--size-4-3);
   margin: var(--size-4-1) 0;
 }
 
-.concept-atlas .concept-atlas-facets dt {
+.concept-atlas .concept-atlas-shared-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-2-2);
+}
+
+.concept-atlas .concept-atlas-shared-facet {
   color: var(--text-muted);
 }
 
-.concept-atlas .concept-atlas-facets dd {
-  margin: 0 0 var(--size-4-1) var(--size-4-3);
+.concept-atlas .concept-atlas-shared-value {
+  padding: 0 var(--size-2-3);
+  border-radius: var(--radius-s);
+  background-color: var(--background-modifier-hover);
 }
 
-.concept-atlas .concept-atlas-filter-to {
-  margin-top: var(--size-4-2);
-}
-
-.concept-atlas .concept-atlas-notes,
-.concept-atlas .concept-atlas-not-annotated {
+.concept-atlas .concept-atlas-notes {
   margin: var(--size-4-1) 0;
   padding-left: 0;
   list-style: none;
+  columns: 14rem;
+  column-gap: var(--size-4-4);
 }
 
 .concept-atlas .concept-atlas-note {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--size-4-2);
   padding: var(--size-2-1) 0;
-}
-
-.concept-atlas .concept-atlas-note.is-selected {
-  background-color: var(--background-modifier-hover);
-  border-radius: var(--radius-s);
-}
-
-.concept-atlas .concept-atlas-values-button {
-  font-size: var(--font-ui-smaller);
-}
-
-.concept-atlas .concept-atlas-values-button.is-active {
-  color: var(--text-on-accent);
-  background-color: var(--interactive-accent);
-}
-
-.concept-atlas .concept-atlas-note-values {
-  margin-top: var(--size-4-4);
-  padding-top: var(--size-4-2);
-  border-top: var(--border-width) solid var(--background-modifier-border);
-}
-
-.concept-atlas .concept-atlas-note-values-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--size-4-2);
+  break-inside: avoid;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .concept-atlas .concept-atlas-footer {

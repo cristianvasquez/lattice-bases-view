@@ -6,7 +6,7 @@ Obsidian plugin (id `concept-atlas`). It adds the layout **Concept lattice** to 
 
 - `src/fca/`: FCA core. Pure TypeScript. No import of `obsidian`, no DOM. Bit sets, formal context, derivation, closure, concept enumeration (Next Closure) with budgets and cancellation, Hasse cover relations.
 - `src/bases/`: Bases adapter. Converts the entries that Bases supplies (`BasesEntry`, evaluated `Value` objects) into a formal context. Object identity is the file path. Attribute identity is `<facet key>:<value in lower case>`. `values.ts` imports the runtime classes of `obsidian`; `atlas.ts` and `facets.ts` import only types.
-- `src/view/`: the `BasesView` subclass (`lattice-view.ts`) and the diagram (`diagram.ts`) with DOM code. Pure modules without DOM: `config.ts` (view options), `state.ts` (view state), `model.ts` (display model, displayed part), `layout.ts` (diagram layout), `text.ts` (interface text).
+- `src/view/`: the `BasesView` subclass (`lattice-view.ts`) and the diagram (`diagram.ts`) with DOM code. The view has two columns: filters (left) and a center column with the status line, the toolbar, the diagram and, below the diagram, the selection panel (only when a filter, a focus or a search text is set). Pure modules without DOM: `config.ts` (view options), `state.ts` (view state), `model.ts` (display model, displayed part), `layout.ts` (diagram layout), `text.ts` (interface text).
 - `src/main.ts`: plugin entry. Registers the Bases view and its options.
 - `styles.css`: every selector starts with `.concept-atlas`. Only Obsidian theme variables for colors, fonts and spacing.
 - `test/*.test.ts`: vitest. `vitest.config.ts` replaces the `obsidian` module with `test/obsidian-mock.ts` (the npm package has only types). `test/fca-oracle.ts` is a brute-force oracle and a generator of random contexts for the FCA tests.
@@ -51,12 +51,12 @@ The runtime behavior in Obsidian has no automated tests. Do these steps by hand 
 2. Open `test-vault` as a vault in Obsidian 1.10.0 or later. Enable the core plugin Bases and the community plugin Concept Atlas.
 3. Open `Visualization techniques.base`, view "Concept lattice". Make sure that the status shows the size of the full lattice and the number of shown concepts, and that `Not a technique.md` is not in the lattice.
 4. Select values in the filters. Make sure that the counts, the disabled values and the mark "shared by all matching notes" change.
-5. Click a node, then use the arrow keys and Escape. Use "Filter to this concept". Drag, zoom and "Fit" the diagram.
-6. Open a note from the note list. Use "Values" and make sure that the section "Note values" shows, that facets without values show "not annotated", and that "Close" removes the section.
-7. Type in the search field. Make sure that only the note lists change.
+5. Click a node, then use the arrow keys and Escape. Make sure that the selection panel below the diagram shows only when a filter, a focus or a search text is set. Use "Filter to this concept" and make sure that the start node gets the keyboard focus. Drag, zoom and "Fit" the diagram.
+6. Open a note from the note list of the selection panel. Make sure that the notes show in columns and that the panel scrolls when the list is long.
+7. Type in the search field. Make sure that only the note list changes.
 8. Change a property value of a note in `Techniques/`. Make sure that the view updates.
 9. Change the three view options. Make sure that the view uses the new values.
-10. Make the view narrower than 700 px. Make sure that the three regions stack and do not overlap.
+10. Make the view narrower than 700 px. Make sure that the filters, the diagram and the selection panel stack in this order and do not overlap.
 11. Close the view while the lattice computes. Make sure that no error shows in the developer console.
 
 An agent can do these steps with the Obsidian CLI when the app runs with `test-vault` open: `obsidian vault=test-vault <command>` with `open path=...`, `eval code=...`, `dev:screenshot path=...`, `dev:errors`. Facts from the test on Obsidian 1.15.1:
